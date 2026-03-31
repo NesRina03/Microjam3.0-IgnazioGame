@@ -65,7 +65,9 @@ public class InstabilityManager : MonoBehaviour
             // Reached stage 4 → creature breaks free
             running = false;
             OnCreatureFreed?.Invoke();
-            GameManager.Instance.TriggerGameOver();
+            //GameManager.Instance.TriggerGameOver();
+            Debug.Log("Game Over triggered");
+
         }
         else
         {
@@ -87,7 +89,9 @@ public class InstabilityManager : MonoBehaviour
         {
             running = false;
             OnAllPuzzlesSolved?.Invoke();
-            GameManager.Instance.TriggerGameOver(); // we'll add Win state next
+            //GameManager.Instance.TriggerGameOver(); // we'll add Win state next
+            Debug.Log("Game Over triggered");
+
         }
 
         Debug.Log($"Puzzle solved! Stage {currentStage + 1} time extended by {extension}s. Remaining: {timeRemaining}s");

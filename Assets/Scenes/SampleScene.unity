@@ -2266,6 +2266,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -6065491769144555541, guid: 74f0a57b8e68abc45b9e329c5be8bb8d, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1470898969}
+    - targetCorrespondingSourceObject: {fileID: -6065491769144555541, guid: 74f0a57b8e68abc45b9e329c5be8bb8d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1470898970}
     - targetCorrespondingSourceObject: {fileID: 7090848197257268863, guid: 74f0a57b8e68abc45b9e329c5be8bb8d, type: 3}
       insertIndex: -1
       addedObject: {fileID: 807729114}
@@ -2324,6 +2327,11 @@ PrefabInstance:
 --- !u!4 &186458080 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -3739703146484984705, guid: 74f0a57b8e68abc45b9e329c5be8bb8d, type: 3}
+  m_PrefabInstance: {fileID: 186458079}
+  m_PrefabAsset: {fileID: 0}
+--- !u!23 &186458081 stripped
+MeshRenderer:
+  m_CorrespondingSourceObject: {fileID: 5661061130849415283, guid: 74f0a57b8e68abc45b9e329c5be8bb8d, type: 3}
   m_PrefabInstance: {fileID: 186458079}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &207923150
@@ -9932,6 +9940,24 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.4579327, y: 1.9387984, z: 1.2012997}
   m_Center: {x: 0.04049853, y: -0.97675407, z: -0.26519132}
+--- !u!114 &1470898970
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1470898960}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f3dcac11af139d45bdad8d2851d206f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleTerminal
+  factorName: light
+  promptLabel: Inspect Panel
+  screenRenderer: {fileID: 186458081}
+  activeColor: {r: 0, g: 1, b: 0.5, a: 1}
+  solvedColor: {r: 0, g: 0.8, b: 0.2, a: 1}
+  inactiveColor: {r: 0.1, g: 0.2, b: 0.1, a: 1}
 --- !u!1 &1472320706 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 379525605311704652, guid: 5ab29aa57a95b7d4faab4b6352ef1c99, type: 3}
@@ -12902,7 +12928,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2090943050}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1f3dcac11af139d45bdad8d2851d206f, type: 3}
   m_Name: 

@@ -67,5 +67,5 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "Microjam3.0-LesSables.slnx"
+    "dotnet.defaultSolution": "MicroJam3.0.slnx"
 }

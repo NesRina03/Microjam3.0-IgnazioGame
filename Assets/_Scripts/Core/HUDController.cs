@@ -40,10 +40,10 @@ public class HUDController : MonoBehaviour
     // ── singleton so PuzzleManager can reach it without FindObjectOfType ──
     public static HUDController Instance { get; private set; }
 
-    void Awake()
+void Awake()
 {
     if (Instance == null) Instance = this;
-    else Destroy(gameObject);
+    else if (Instance != this) Destroy(gameObject); // ← only destroy TRUE duplicates
 }
 
 public static void Register(HUDController hud)

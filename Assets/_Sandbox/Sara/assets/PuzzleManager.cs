@@ -52,23 +52,26 @@ public class PuzzleManager : MonoBehaviour
     if (IsPuzzleOpen) return;
 
     activeTerminal = terminal;
-    IsPuzzleOpen = true;
+    IsPuzzleOpen   = true;
 
     fpsController.enabled = false;
-    Cursor.lockState = CursorLockMode.None;
-    Cursor.visible = true;
+    Cursor.lockState      = CursorLockMode.None;
+    Cursor.visible        = true;
 
     if (backgroundDim != null)
         backgroundDim.SetActive(true);
 
     currentPanel = GetPanel(terminal.FactorName);
 
-    // ADD THIS
-    Debug.Log("Opening puzzle for factor: " + terminal.FactorName 
-              + " | Panel found: " + (currentPanel != null));
+    Debug.Log("Factor: " + terminal.FactorName 
+              + " | Panel: " + (currentPanel != null ? currentPanel.name : "NULL"));
 
     if (currentPanel != null)
+    {
+        Debug.Log("Setting panel active: " + currentPanel.name);
         currentPanel.SetActive(true);
+        Debug.Log("Panel is now active: " + currentPanel.activeSelf);
+    }
 }
 
     public void ClosePuzzle()
@@ -154,4 +157,22 @@ public class PuzzleManager : MonoBehaviour
 
     public float GetInstability() =>
         1f - (flight + ftemp + fpressure + foxygen + fradiation) / 5f;
+
+    public void OnPuzzleSolved(int factorIndex)
+{
+    //InstabilityController.Instance.SetFactor(factorIndex, 1f);
+    ClosePuzzle();
+}
+
+public void OnPuzzleFailed(int factorIndex)
+{
+   // InstabilityManager.Instance.ApplyPenalty(factorIndex);
+
+}
+
+public void ApplyPenalty(int factorIndex)
+{
+    //factorValues[factorIndex] = Mathf.Clamp01(factorValues[factorIndex] - 0.15f);
+}
+
 }

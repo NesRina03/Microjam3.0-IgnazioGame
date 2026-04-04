@@ -6,24 +6,23 @@ public class InstabilityManager : MonoBehaviour
     public static InstabilityManager Instance;
 
     [Header("Stage Base Times (seconds)")]
-    public float[] stageBaseTimes = { 900f, 600f, 420f }; // 15, 10, 7 min
+    public float[] stageBaseTimes = { 900f, 600f, 420f };
 
     [Header("Extension % per puzzle solved (per stage)")]
     public float[] extensionPercents = { 0.10f, 0.20f, 0.30f };
 
     [Header("Cap: max multiplier on base time")]
-    public float maxExtensionMultiplier = 2f; // max 2x base time
+    public float maxExtensionMultiplier = 2f;
 
-    // Events other scripts listen to
-    public UnityEvent<int> OnStageChanged;   // broadcasts new stage number
-    public UnityEvent OnCreatureFreed;        // creature breaks tank → lose
-    public UnityEvent OnAllPuzzlesSolved;     // all 5 solved → win
+    public UnityEvent<int> OnStageChanged;
+    public UnityEvent OnCreatureFreed;
+    public UnityEvent OnAllPuzzlesSolved;
 
-    [HideInInspector] public int currentStage = 0; // 0-indexed (0=stage1)
+    [HideInInspector] public int currentStage = 0;
     [HideInInspector] public float timeRemaining;
     [HideInInspector] public int puzzlesSolved = 0;
 
-    private float currentStageMax; // current cap for this stage
+    private float currentStageMax;
     private bool running = false;
 
     void Awake()
@@ -32,18 +31,18 @@ public class InstabilityManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    void Start()
+    public void StartGame()
     {
-        StartStage(0);
+        puzzlesSolved = 0;
+        currentStage = 0;
         running = true;
+        StartStage(0);
     }
 
     void Update()
     {
         if (!running) return;
-
         timeRemaining -= Time.deltaTime;
-
         if (timeRemaining <= 0f)
             AdvanceStage();
     }
@@ -53,21 +52,17 @@ public class InstabilityManager : MonoBehaviour
         currentStage = stage;
         timeRemaining = stageBaseTimes[stage];
         currentStageMax = stageBaseTimes[stage] * maxExtensionMultiplier;
-        OnStageChanged?.Invoke(stage + 1); // send 1-indexed to HUD
+        OnStageChanged?.Invoke(stage + 1);
     }
 
     void AdvanceStage()
     {
         int nextStage = currentStage + 1;
-
         if (nextStage >= stageBaseTimes.Length)
         {
-            // Reached stage 4 → creature breaks free
             running = false;
             OnCreatureFreed?.Invoke();
-            //GameManager.Instance.TriggerGameOver();
-            Debug.Log("Game Over triggered");
-
+            GameManager.Instance.TriggerGameOver();
         }
         else
         {
@@ -75,29 +70,20 @@ public class InstabilityManager : MonoBehaviour
         }
     }
 
-    // Call this from any puzzle when solved
     public void OnPuzzleSolved()
     {
         puzzlesSolved++;
-
-        // Extend current stage time
         float extension = stageBaseTimes[currentStage] * extensionPercents[currentStage];
         timeRemaining = Mathf.Min(timeRemaining + extension, currentStageMax);
 
-        // Check win condition
         if (puzzlesSolved >= 5)
         {
             running = false;
             OnAllPuzzlesSolved?.Invoke();
-            //GameManager.Instance.TriggerGameOver(); // we'll add Win state next
-            Debug.Log("Game Over triggered");
-
+            GameManager.Instance.TriggerWin();
         }
-
-        Debug.Log($"Puzzle solved! Stage {currentStage + 1} time extended by {extension}s. Remaining: {timeRemaining}s");
     }
 
-    // Handy for HUD — returns 0 to 1
     public float GetStageProgress()
     {
         return timeRemaining / stageBaseTimes[currentStage];

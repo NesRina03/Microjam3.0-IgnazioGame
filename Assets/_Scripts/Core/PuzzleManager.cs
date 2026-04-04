@@ -96,17 +96,30 @@ public class PuzzleManager : MonoBehaviour
             activeTerminal.OnClosed();
 
         activeTerminal = null;
+
+        fpsController.enabled = true;        
+        GameManager.Instance.RestorePlayState();
     }
 
-    public void NotifySolved(string factorName)
+   public void NotifySolved(string factorName)
+{
+    SetFactor(factorName, 1f);
+    InstabilityManager.Instance.OnPuzzleSolved();
+
+    // use singleton — no more null risk from FindObjectOfType on disabled objects
+    var hud = HUDController.Instance;
+    if (hud != null)
     {
-        SetFactor(factorName, 1f);
-
-        if (activeTerminal != null)
-            activeTerminal.MarkSolved();
-
-        ClosePuzzle();
+        if (factorName == "light")      hud.MarkLightSolved();
+        if (factorName == "oxygen")     hud.MarkOxygenSolved();
+        if (factorName == "temp")       hud.MarkTemperatureSolved();
+        if (factorName == "pressure")   hud.MarkPressureSolved();
+        if (factorName == "radiation")  hud.MarkRadiationSolved();
     }
+
+    if (activeTerminal != null) activeTerminal.MarkSolved();
+    ClosePuzzle();
+}
 
     public void NotifyFailed(float penalty = 0.15f)
     {

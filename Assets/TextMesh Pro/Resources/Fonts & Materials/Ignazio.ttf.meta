@@ -1,0 +1,23 @@
+fileFormatVersion: 2
+guid: 309189f16dc9d9e7796d3aaaf0e22d60
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontNames:
+  - Ignazio
+  fallbackFontReferences:
+  - {fileID: 12800000, guid: 93d282b542f03ecd8bbeb1b5d2df8b78, type: 3}
+  - {fileID: 12800000, guid: 12b00411ae8927a3dba3b17d28ae3820, type: 3}
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 1
+  shouldRoundAdvanceValue: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

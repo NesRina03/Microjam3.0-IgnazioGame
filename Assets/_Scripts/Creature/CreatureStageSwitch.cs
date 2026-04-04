@@ -1,8 +1,15 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
+using System.Collections;
+using UnityEngine.Video;
+
 
 public class CreatureStageSwitch : MonoBehaviour
 {
+
+    [Header("Cutscene")]
+    public GameObject cutsceneCanvas;
+    public VideoPlayer cutsceneVideo;
+
     [Header("Creature Stages")]
     public GameObject stage1;
     public GameObject stage2;
@@ -20,12 +27,9 @@ public class CreatureStageSwitch : MonoBehaviour
     public AudioClip gameOverSound;
 
     [Header("Timing (seconds)")]
-    public float timeToStage2 = 15f;
-    public float timeToStage3 = 30f;
+    public float timeToStage2 = 60f;
+    public float timeToStage3 = 50f;
     public float timeToStage4 = 45f;
-
-    [Header("Game Over")]
-    public string gameOverScene = "GameOver";
 
     private int currentStage = 1;
     private float lockedX;
@@ -37,8 +41,6 @@ public class CreatureStageSwitch : MonoBehaviour
     {
         stage2.SetActive(false);
         stage3.SetActive(false);
-
-        // Hide both broken tank parts at start
         brokenTankPart1.SetActive(false);
         brokenTankPart2.SetActive(false);
 
@@ -56,7 +58,7 @@ public class CreatureStageSwitch : MonoBehaviour
 
     void PlaySound(AudioClip clip)
     {
-        if(clip == null) return;
+        if (clip == null) return;
         audioSource.Stop();
         audioSource.clip = clip;
         audioSource.Play();
@@ -72,7 +74,7 @@ public class CreatureStageSwitch : MonoBehaviour
     void DisableRootMotion(GameObject obj)
     {
         Animator anim = obj.GetComponent<Animator>();
-        if(anim != null) anim.applyRootMotion = false;
+        if (anim != null) anim.applyRootMotion = false;
     }
 
     void SwitchToStage(GameObject from, GameObject to)
@@ -82,7 +84,6 @@ public class CreatureStageSwitch : MonoBehaviour
         lockedRotation = from.transform.rotation;
 
         DisableRootMotion(to);
-
         from.SetActive(false);
 
         to.transform.position = new Vector3(lockedX, from.transform.position.y, lockedZ);
@@ -91,64 +92,75 @@ public class CreatureStageSwitch : MonoBehaviour
     }
 
     void SwitchToStage2()
-    {
-        Debug.Log("Creature evolving to Stage 2!");
-        SwitchToStage(stage1, stage2);
-        currentStage = 2;
-        PlaySound(stage2Sound);
-    }
+{
+    SwitchToStage(stage1, stage2);
+    currentStage = 2;
+    PlaySound(stage2Sound);
+    if (InstabilityManager.Instance != null) InstabilityManager.Instance.currentStage = 1; // 0-indexed
+}
 
-    void SwitchToStage3()
-    {
-        Debug.Log("Creature evolving to Stage 3!");
-        SwitchToStage(stage2, stage3);
-        currentStage = 3;
-        PlaySound(stage3Sound);
-    }
+void SwitchToStage3()
+{
+    SwitchToStage(stage2, stage3);
+    currentStage = 3;
+    PlaySound(stage3Sound);
+    if (InstabilityManager.Instance != null) InstabilityManager.Instance.currentStage = 2;
+}
 
     void GameOver()
     {
-        Debug.Log("Stage 4 - Creature breaks glass - GAME OVER!");
-
-        // Hide stage 3
         stage3.SetActive(false);
-
-        // Hide normal tank, show both broken parts
         normalTank.SetActive(false);
         brokenTankPart1.SetActive(true);
         brokenTankPart2.SetActive(true);
 
-        // Play game over sound
         audioSource.loop = false;
         PlaySound(gameOverSound);
 
-        Invoke("LoadGameOver", gameOverSound != null ? gameOverSound.length : 2f);
+        float delay = gameOverSound != null ? gameOverSound.length : 2f;
+        StartCoroutine(GameOverDelay(delay));
     }
+IEnumerator GameOverDelay(float delay)
+{
+    yield return new WaitForSecondsRealtime(delay);
+    StartCoroutine(PlayCutsceneThenLose());
+}
 
-    void LoadGameOver()
+IEnumerator PlayCutsceneThenLose()
     {
-        SceneManager.LoadScene(gameOverScene);
+        // Show cutscene canvas
+        if (cutsceneCanvas != null) cutsceneCanvas.SetActive(true);
+
+        if (cutsceneVideo != null)
+        {
+            cutsceneVideo.Play();
+            // Wait until video is done
+            yield return new WaitUntil(() => !cutsceneVideo.isPlaying);
+        }
+        else
+        {
+            yield return new WaitForSecondsRealtime(3f); // fallback
+        }
+
+        if (cutsceneCanvas != null) cutsceneCanvas.SetActive(false);
+        ShowLoseUI();
     }
 
+    void ShowLoseUI()
+    {
+        GameManager.Instance.TriggerGameOver();
+    }
     void LateUpdate()
     {
-        if(currentStage == 2 && stage2.activeSelf)
+        if (currentStage == 2 && stage2.activeSelf)
         {
             stage2.transform.position = new Vector3(lockedX, stage2.transform.position.y, lockedZ);
             stage2.transform.rotation = lockedRotation;
         }
-        else if(currentStage == 3 && stage3.activeSelf)
+        else if (currentStage == 3 && stage3.activeSelf)
         {
             stage3.transform.position = new Vector3(lockedX, stage3.transform.position.y, lockedZ);
             stage3.transform.rotation = lockedRotation;
         }
-    }
-
-    public void OnPuzzleSolved(int puzzleNumber)
-    {
-        Debug.Log("Puzzle " + puzzleNumber + " solved!");
-        if(puzzleNumber == 1) SwitchToStage2();
-        else if(puzzleNumber == 2) SwitchToStage3();
-        else if(puzzleNumber == 3) GameOver();
     }
 }

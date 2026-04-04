@@ -31,13 +31,13 @@ public class InstabilityManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    public void StartGame()
-    {
-        puzzlesSolved = 0;
-        currentStage = 0;
-        running = true;
-        StartStage(0);
-    }
+  public void StartGame()
+{
+    puzzlesSolved = 0;
+    currentStage  = 0;
+    running       = true;
+    StartStage(0);
+}
 
     void Update()
     {
@@ -55,20 +55,17 @@ public class InstabilityManager : MonoBehaviour
         OnStageChanged?.Invoke(stage + 1);
     }
 
-    void AdvanceStage()
+   void AdvanceStage()
+{
+    int nextStage = currentStage + 1;
+    if (nextStage >= stageBaseTimes.Length)
     {
-        int nextStage = currentStage + 1;
-        if (nextStage >= stageBaseTimes.Length)
-        {
-            running = false;
-            OnCreatureFreed?.Invoke();
-            GameManager.Instance.TriggerGameOver();
-        }
-        else
-        {
-            StartStage(nextStage);
-        }
+        running = false;
+        OnCreatureFreed?.Invoke(); // creature handles delay then calls TriggerGameOver
+        // REMOVE GameManager.Instance.TriggerGameOver() from here
     }
+    else StartStage(nextStage);
+}
 
     public void OnPuzzleSolved()
     {

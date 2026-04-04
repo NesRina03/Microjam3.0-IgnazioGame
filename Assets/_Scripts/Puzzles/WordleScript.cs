@@ -5,6 +5,10 @@ using System.Collections;
 
 public class WordleScript : MonoBehaviour
 {
+    [Header("Factor")]
+[SerializeField] string factorName = "oxygen"; // set in Inspector to whichever factor Wordle is assigned
+
+
     [Header("Grid — 6 rows x 5 cols")]
     private TextMeshProUGUI[,] grid = new TextMeshProUGUI[6, 5];
     public GameObject[] rowObjects; // drag 6 row objects in Inspector
@@ -188,7 +192,6 @@ public class WordleScript : MonoBehaviour
 
     void PuzzleSolved()
     {
-        InstabilityManager.Instance.OnPuzzleSolved();
-        gameObject.SetActive(false); // close the puzzle canvas
+        PuzzleManager.Instance.NotifySolved(factorName);
     }
 }

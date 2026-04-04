@@ -103,13 +103,16 @@ public class PuzzleManager : MonoBehaviour
 
    public void NotifySolved(string factorName)
 {
+    Debug.Log("NotifySolved called with: " + factorName);
+    Debug.Log("HUDController.Instance is null: " + (HUDController.Instance == null));
+    
     SetFactor(factorName, 1f);
     InstabilityManager.Instance.OnPuzzleSolved();
 
-    // use singleton — no more null risk from FindObjectOfType on disabled objects
     var hud = HUDController.Instance;
     if (hud != null)
     {
+        Debug.Log("Calling Mark on HUD for: " + factorName);
         if (factorName == "light")      hud.MarkLightSolved();
         if (factorName == "oxygen")     hud.MarkOxygenSolved();
         if (factorName == "temp")       hud.MarkTemperatureSolved();
@@ -120,7 +123,6 @@ public class PuzzleManager : MonoBehaviour
     if (activeTerminal != null) activeTerminal.MarkSolved();
     ClosePuzzle();
 }
-
     public void NotifyFailed(float penalty = 0.15f)
     {
         if (activeTerminal != null)
@@ -164,7 +166,15 @@ public class PuzzleManager : MonoBehaviour
             case "radiation": fradiation = Mathf.Max(0, fradiation - amount); break;
         }
     }
-
+public void ForceReset()
+{
+    if (currentPanel != null) currentPanel.SetActive(false);
+    if (backgroundDim != null) backgroundDim.SetActive(false);
+    currentPanel   = null;
+    activeTerminal = null;
+    IsPuzzleOpen   = false;
+    fpsController.enabled = true;
+}
     public float GetInstability() =>
         1f - (flight + ftemp + fpressure + foxygen + fradiation) / 5f;
 }

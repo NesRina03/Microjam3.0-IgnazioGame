@@ -31,7 +31,10 @@ public class ElectricalPuzzle : MonoBehaviour, IPuzzlePanel
 
     [Header("Settings")]
     [SerializeField] float  timeLimit  = 90f;
-    [SerializeField] string factorName = "temp";
+
+    [Header("Factor")]
+    [SerializeField] string factorName = "temp"; // set in Inspector to whichever factor Wordle is assigned
+    
 
     // ── Colors ────────────────────────────────────────────────────
     static readonly Color colorSolved = new Color(0.00f, 1.00f, 0.53f);
@@ -238,24 +241,29 @@ public class ElectricalPuzzle : MonoBehaviour, IPuzzlePanel
     }
 
     // ── Solve ─────────────────────────────────────────────────────
-    IEnumerator SolveSequence()
+   IEnumerator SolveSequence()
+{
+    isSolved = true;
+    
+    // Stop ONLY the timer, not this coroutine
+    if (timerCoroutine != null)
     {
-        isSolved = true;
-        StopAllCoroutines();
-
-        if (timerDisplay != null)
-        {
-            timerDisplay.text  = "COMPLETE";
-            timerDisplay.color = colorSolved;
-        }
-
-        ShowStatus("POWER RESTORED", colorSolved);
-        if (currentDisplay != null) currentDisplay.color = colorSolved;
-
-        yield return new WaitForSeconds(2f);
-        PuzzleManager.Instance.NotifySolved(factorName);
+        StopCoroutine(timerCoroutine);
+        timerCoroutine = null;
     }
 
+    if (timerDisplay != null)
+    {
+        timerDisplay.text  = "COMPLETE";
+        timerDisplay.color = colorSolved;
+    }
+
+    ShowStatus("POWER RESTORED", colorSolved);
+    if (currentDisplay != null) currentDisplay.color = colorSolved;
+
+    yield return new WaitForSeconds(2f);
+    PuzzleManager.Instance.NotifySolved(factorName);
+}
     // ── Fail ──────────────────────────────────────────────────────
     IEnumerator FailSequence()
     {

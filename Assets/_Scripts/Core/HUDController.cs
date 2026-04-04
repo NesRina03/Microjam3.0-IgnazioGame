@@ -84,35 +84,34 @@ public static void Register(HUDController hud)
         }
     }
 
-    void Update()
+   void Update()
+{
+    if (InstabilityManager.Instance == null) return;
+    if (_texts == null) return; // ← add this
+
+    stageText.text = "STAGE " + (InstabilityManager.Instance.currentStage + 1);
+
+    float t     = InstabilityManager.Instance.timeRemaining;
+    int minutes = Mathf.FloorToInt(t / 60f);
+    int seconds = Mathf.FloorToInt(t % 60f);
+    timerText.text  = string.Format("{0:00}:{1:00}", minutes, seconds);
+    timerText.color = t < 60f ? Color.red : Color.white;
+
+    for (int i = 0; i < 5; i++)
     {
-        if (InstabilityManager.Instance == null) return;
-
-        // stage
-        stageText.text = "STAGE " + (InstabilityManager.Instance.currentStage + 1);
-
-        // timer
-        float t       = InstabilityManager.Instance.timeRemaining;
-        int minutes   = Mathf.FloorToInt(t / 60f);
-        int seconds   = Mathf.FloorToInt(t % 60f);
-        timerText.text  = string.Format("{0:00}:{1:00}", minutes, seconds);
-        timerText.color = t < 60f ? Color.red : Color.white;
-
-        // indicators — just display whatever the coroutine last wrote
-        for (int i = 0; i < 5; i++)
+        if (_texts[i] == null) continue; // ← skip unassigned slots
+        if (_solved[i])
         {
-            if (_solved[i])
-            {
-                _texts[i].text  = "100";
-                _texts[i].color = stableColor;
-            }
-            else
-            {
-                _texts[i].text  = Mathf.RoundToInt(_currentDisplayValues[i]).ToString();
-                _texts[i].color = unstableColor;
-            }
+            _texts[i].text  = "100";
+            _texts[i].color = stableColor;
+        }
+        else
+        {
+            _texts[i].text  = Mathf.RoundToInt(_currentDisplayValues[i]).ToString();
+            _texts[i].color = unstableColor;
         }
     }
+}
 
     // ── called by PuzzleManager.NotifySolved ──
     public void MarkLightSolved()       => MarkSolved(0);

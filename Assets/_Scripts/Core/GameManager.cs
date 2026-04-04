@@ -61,15 +61,19 @@ void Start()
     }
 
     public void StartGame()
-    {
-        currentState = GameState.Playing;
-        SetScreens(hud: true);
-        Time.timeScale   = 1f;
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible   = false;
-        InstabilityManager.Instance.StartGame();
-        if (_fps != null) _fps.enabled = true;
-    }
+{
+    currentState = GameState.Playing;
+    SetScreens(hud: true);
+    Time.timeScale   = 1f;
+    Cursor.lockState = CursorLockMode.Locked;
+    Cursor.visible   = false;
+    InstabilityManager.Instance.StartGame();
+    if (_fps != null) _fps.enabled = true;
+    
+    // ← force reset puzzle state on every new game
+    if (PuzzleManager.Instance != null)
+        PuzzleManager.Instance.ForceReset();
+}
 
     public void TogglePause()
     {
@@ -93,16 +97,19 @@ void Start()
         }
     }
 
-    public void TriggerWin()
-    {
-        currentState = GameState.Win;
-        SetScreens(win: true);
-        Time.timeScale   = 0f;
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible   = true;
-        if (_fps != null) _fps.enabled = false;
-    }
+   public void TriggerWin()
+{
+    currentState = GameState.Win;
+    SetScreens(win: true);
+    Time.timeScale   = 0f;
+    Cursor.lockState = CursorLockMode.None;
+    Cursor.visible   = true;
+    if (_fps != null) _fps.enabled = false;
 
+    // disable raycaster too
+    var raycaster = FindFirstObjectByType<InteractionRaycaster>();
+    if (raycaster != null) raycaster.enabled = false;
+}
     public void TriggerGameOver()
     {
         currentState = GameState.Lose;
@@ -111,6 +118,8 @@ void Start()
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible   = true;
         if (_fps != null) _fps.enabled = false;
+         var raycaster = FindFirstObjectByType<InteractionRaycaster>();
+    if (raycaster != null) raycaster.enabled = false;
     }
 
     public void RestartGame()

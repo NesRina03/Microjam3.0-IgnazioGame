@@ -3,13 +3,15 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
 
-public class LightPuzzle : MonoBehaviour
+public class LightPuzzle : MonoBehaviour, IPuzzlePanel
 {
+    [Header("Factor")]
+    [SerializeField] string factorName = "light"; // set in Inspector to whichever factor Wordle is assigned
     [Header("UI References")]
+
     [SerializeField] TextMeshProUGUI statusText;
-    [SerializeField] TextMeshProUGUI attemptsText;
-    [SerializeField] TextMeshProUGUI hintText;
     [SerializeField] TextMeshProUGUI movesText;
+    [SerializeField] TextMeshProUGUI hintText;
     [SerializeField] Transform inputsContainer;
     [SerializeField] Transform gatesContainer;
     [SerializeField] Transform outputContainer;
@@ -36,155 +38,235 @@ public class LightPuzzle : MonoBehaviour
     [SerializeField] GameObject wirePrefab;
     [SerializeField] Transform wireContainer;
 
-    List<RectTransform>    spawnedWires    = new List<RectTransform>();
-    List<RectTransform>    gateRects       = new List<RectTransform>();
-    List<TextMeshProUGUI>  gateValueLabels = new List<TextMeshProUGUI>();
+    // ── Runtime references ────────────────────────────────────────────
+    List<RectTransform>   spawnedWires    = new List<RectTransform>();
+    List<RectTransform>   gateRects       = new List<RectTransform>();
+    List<Image>           gateCards       = new List<Image>();
+    List<Toggle>          inputToggles    = new List<Toggle>();
+    Image                 outputImage;
 
     // ── Gate definition ───────────────────────────────────────────────
     struct Gate
     {
         public string type;
-        public int inA, inB;
-        public int gateA, gateB;
+        public int inA, inB;   // input indices (-1 = use gate output)
+        public int gateA, gateB; // gate indices (-1 = use input)
     }
 
-    struct PuzzleLayout
+    struct Circuit
     {
-        public string   label;
         public string[] inputs;
         public Gate[]   gates;
         public int      outputGate;
     }
 
-    PuzzleLayout[] puzzles;
-
     // ── Runtime state ─────────────────────────────────────────────────
-    int    currentPuzzle = 0;
-    bool[] inputValues;
-    bool[] gateResults;
-    int    togglesUsed   = 0;
-    int    minMovesNeeded = 0;
-    bool   hintUsed      = false;
-    bool   solved        = false;
-    bool   failed        = false;
-
-    List<Toggle>          inputToggles = new List<Toggle>();
-    List<TextMeshProUGUI> gateLabels   = new List<TextMeshProUGUI>();
-    List<Image>           gateCards    = new List<Image>();
-    Image                 outputImage;
+    Circuit currentCircuit;
+    bool[]  inputValues;
+    bool[]  gateResults;
+    int     togglesUsed   = 0;
+    int     minMoves      = 0;
+    bool    solved        = false;
+    bool    failed        = false;
+    bool    hintUsed      = false;
+    bool    viewOnly      = false;
 
     // ── Gate colors ───────────────────────────────────────────────────
-    Color colAND  = new Color(0f,    0.10f, 0.04f, 1f);
-    Color colOR   = new Color(0f,    0.06f, 0.10f, 1f);
-    Color colNOT  = new Color(0.10f, 0.02f, 0.02f, 1f);
-    Color colXOR  = new Color(0.10f, 0.05f, 0f,    1f);
-    Color colNAND = new Color(0.06f, 0f,    0.10f, 1f);
-    Color colNOR  = new Color(0f,    0.10f, 0.10f, 1f);
-    Color colXNOR = new Color(0.10f, 0.10f, 0f,    1f);
-    Color colInactive = new Color(0.04f, 0.08f, 0.05f, 1f);
+    readonly Color colInactive = new Color(0.04f, 0.08f, 0.05f, 1f);
 
     // ─────────────────────────────────────────────────────────────────
-    void Awake() => BuildPuzzles();
+    void Awake() { }
 
     void OnEnable()
     {
-        solved       = false;
-        failed       = false;
-        hintUsed     = false;
-        togglesUsed  = 0;
-        currentPuzzle = Random.Range(0, puzzles.Length);
-        SpawnUI();
+        solved      = false;
+        failed      = false;
+        hintUsed    = false;
+        viewOnly    = false;
+        togglesUsed = 0;
+        GenerateAndSpawn();
     }
 
-    // ── Build puzzle layouts ──────────────────────────────────────────
-    void BuildPuzzles()
+    // ── IPuzzlePanel ──────────────────────────────────────────────────
+    public void SetViewOnly(bool isViewOnly)
     {
-        puzzles = new PuzzleLayout[]
+        viewOnly = isViewOnly;
+        foreach (Toggle t in inputToggles)
+            t.interactable = !isViewOnly;
+
+        if (statusText != null && isViewOnly)
         {
-            new PuzzleLayout
+            statusText.text  = "SOLVED — VIEW MODE";
+            statusText.color = new Color(0f, 1f, 0.53f);
+        }
+
+        if (movesText != null && isViewOnly)
+            movesText.text = "";
+    }
+
+    // ── RNG Circuit Generation ────────────────────────────────────────
+    Circuit GenerateCircuit()
+    {
+        string[] gateTypes = { "AND","OR","NOT","XOR","NAND","NOR","XNOR" };
+
+        // Pick 4 or 5 inputs randomly
+        int inputCount = Random.Range(4, 6);
+        string[] inputs = new string[inputCount];
+        string[] letters = { "A","B","C","D","E","F" };
+        for (int i = 0; i < inputCount; i++)
+            inputs[i] = letters[i];
+
+        // Build gates in layers
+        // Layer 0: gates that take raw inputs
+        // Layer 1+: gates that can take previous gate outputs
+        List<Gate> gates = new List<Gate>();
+        int layer0Count = Random.Range(2, 4);
+
+        // Track which inputs are used so all get connected
+        List<int> unusedInputs = new List<int>();
+        for (int i = 0; i < inputCount; i++) unusedInputs.Add(i);
+
+        // Layer 0 — connect raw inputs
+        for (int g = 0; g < layer0Count; g++)
+        {
+            string type = gateTypes[Random.Range(0, gateTypes.Length)];
+            bool isNOT  = type == "NOT";
+
+            int inA = unusedInputs.Count > 0
+                ? PopRandom(unusedInputs)
+                : Random.Range(0, inputCount);
+
+            int inB = -1;
+            if (!isNOT)
+                inB = unusedInputs.Count > 0
+                    ? PopRandom(unusedInputs)
+                    : Random.Range(0, inputCount);
+
+            gates.Add(new Gate
             {
-                label = "LVL 1", inputs = new[]{"A","B","C"},
-                gates = new Gate[]
-                {
-                    new Gate{type="AND", inA=0,inB=1, gateA=-1,gateB=-1},
-                    new Gate{type="NOT", inA=2,inB=-1,gateA=-1,gateB=-1},
-                    new Gate{type="OR",  inA=-1,inB=-1,gateA=0,gateB=1},
-                    new Gate{type="AND", inA=0,inB=-1,gateA=-1,gateB=2},
-                },
-                outputGate = 3
-            },
-            new PuzzleLayout
+                type  = type,
+                inA   = inA,
+                inB   = inB,
+                gateA = -1,
+                gateB = -1
+            });
+        }
+
+        // Make sure remaining unused inputs feed into existing gates
+        // by overwriting inB of a random layer0 gate
+        while (unusedInputs.Count > 0)
+        {
+            int inp    = PopRandom(unusedInputs);
+            int target = Random.Range(0, layer0Count);
+            Gate g     = gates[target];
+            if (g.type != "NOT")
             {
-                label = "LVL 2", inputs = new[]{"A","B","C","D"},
-                gates = new Gate[]
-                {
-                    new Gate{type="XOR", inA=0,inB=1, gateA=-1,gateB=-1},
-                    new Gate{type="NOT", inA=2,inB=-1,gateA=-1,gateB=-1},
-                    new Gate{type="OR",  inA=-1,inB=3,gateA=1, gateB=-1},
-                    new Gate{type="AND", inA=-1,inB=-1,gateA=0,gateB=2},
-                },
-                outputGate = 3
-            },
-            new PuzzleLayout
+                g.inB      = inp;
+                gates[target] = g;
+            }
+        }
+
+        // Layer 1 — mix gate outputs
+        int layer1Count = Random.Range(1, 3);
+        for (int g = 0; g < layer1Count; g++)
+        {
+            string type = gateTypes[Random.Range(0, gateTypes.Length)];
+            bool isNOT  = type == "NOT";
+
+            int gA = Random.Range(0, layer0Count);
+            int gB = isNOT ? -1 : Random.Range(0, layer0Count);
+
+            // Avoid same gate feeding both inputs
+            if (!isNOT && gB == gA)
+                gB = (gA + 1) % layer0Count;
+
+            gates.Add(new Gate
             {
-                label = "LVL 3", inputs = new[]{"A","B","C","D"},
-                gates = new Gate[]
-                {
-                    new Gate{type="NAND",inA=0,inB=1, gateA=-1,gateB=-1},
-                    new Gate{type="XNOR",inA=2,inB=3, gateA=-1,gateB=-1},
-                    new Gate{type="NOT", inA=0,inB=-1,gateA=-1,gateB=-1},
-                    new Gate{type="AND", inA=-1,inB=-1,gateA=0,gateB=1},
-                    new Gate{type="OR",  inA=-1,inB=-1,gateA=3,gateB=2},
-                },
-                outputGate = 4
-            },
-            new PuzzleLayout
-            {
-                label = "LVL 4", inputs = new[]{"A","B","C","D"},
-                gates = new Gate[]
-                {
-                    new Gate{type="NOR", inA=0,inB=1, gateA=-1,gateB=-1},
-                    new Gate{type="XOR", inA=1,inB=2, gateA=-1,gateB=-1},
-                    new Gate{type="NAND",inA=3,inB=0, gateA=-1,gateB=-1},
-                    new Gate{type="AND", inA=-1,inB=-1,gateA=1,gateB=2},
-                    new Gate{type="OR",  inA=-1,inB=-1,gateA=0,gateB=3},
-                },
-                outputGate = 4
-            },
-            new PuzzleLayout
-            {
-                label = "LVL 5", inputs = new[]{"A","B","C","D","E"},
-                gates = new Gate[]
-                {
-                    new Gate{type="NAND",inA=0,inB=1, gateA=-1,gateB=-1},
-                    new Gate{type="XOR", inA=0,inB=2, gateA=-1,gateB=-1},
-                    new Gate{type="AND", inA=1,inB=3, gateA=-1,gateB=-1},
-                    new Gate{type="NOR", inA=3,inB=4, gateA=-1,gateB=-1},
-                    new Gate{type="OR",  inA=-1,inB=-1,gateA=0,gateB=1},
-                    new Gate{type="XNOR",inA=-1,inB=-1,gateA=2,gateB=3},
-                    new Gate{type="NAND",inA=-1,inB=2, gateA=4,gateB=-1},
-                    new Gate{type="AND", inA=-1,inB=4, gateA=5,gateB=-1},
-                    new Gate{type="XOR", inA=-1,inB=-1,gateA=6,gateB=7},
-                },
-                outputGate = 8
-            },
+                type  = type,
+                inA   = -1,
+                inB   = -1,
+                gateA = gA,
+                gateB = isNOT ? -1 : layer0Count + g > gA ? gA : gB
+            });
+        }
+
+        // Final gate — takes last two gates as input
+        int total = gates.Count;
+        string finalType = gateTypes[Random.Range(0, gateTypes.Length)];
+        while (finalType == "NOT") // final gate must take 2 inputs
+            finalType = gateTypes[Random.Range(0, gateTypes.Length)];
+
+        gates.Add(new Gate
+        {
+            type  = finalType,
+            inA   = -1,
+            inB   = -1,
+            gateA = total - 2 < 0 ? 0 : total - 2,
+            gateB = total - 1 < 0 ? 0 : total - 1
+        });
+
+        return new Circuit
+        {
+            inputs     = inputs,
+            gates      = gates.ToArray(),
+            outputGate = gates.Count - 1
         };
     }
 
-    // ── Calculate minimum moves needed via BFS ────────────────────────
-    int CalculateMinMoves(PuzzleLayout p)
+    int PopRandom(List<int> list)
     {
-        int n = p.inputs.Length;
+        int idx = Random.Range(0, list.Count);
+        int val = list[idx];
+        list.RemoveAt(idx);
+        return val;
+    }
 
-        // Start state: all inputs false (represented as int bitmask)
+    // Try generating until we get a circuit that needs
+    // at least 1 move and at most inputCount-1 moves
+   void GenerateAndSpawn()
+{
+    int attempts = 0;
+    bool valid = false;
+
+    do
+    {
+        currentCircuit = GenerateCircuit();
+
+        // Check actual initial output with all inputs false
+        inputValues = new bool[currentCircuit.inputs.Length];
+        gateResults = new bool[currentCircuit.gates.Length];
+        EvaluateSilent();
+
+        bool initialOutput = gateResults[currentCircuit.outputGate];
+
+        // Reject if already solved at start
+        if (initialOutput)
+        {
+            attempts++;
+            continue;
+        }
+
+        minMoves = CalculateMinMoves(currentCircuit);
+
+        // Accept only if minMoves is 1, 2, or 3 — hard but fair
+        valid = minMoves >= 1 && minMoves <= 3;
+        attempts++;
+    }
+    while (!valid && attempts < 100);
+
+    SpawnUI();
+}
+
+    // ── Min moves via BFS ─────────────────────────────────────────────
+    int CalculateMinMoves(Circuit c)
+    {
+        int n          = c.inputs.Length;
         int startState = 0;
 
-        // If start state already gives output 1, 0 moves needed
-        if (EvaluateState(p, startState)) return 0;
+        if (EvaluateState(c, startState)) return 0;
 
-        // BFS over all possible input states
-        Queue<(int state, int moves)> queue = new Queue<(int, int)>();
-        HashSet<int> visited = new HashSet<int>();
+        var queue   = new Queue<(int state, int moves)>();
+        var visited = new HashSet<int>();
 
         queue.Enqueue((startState, 0));
         visited.Add(startState);
@@ -192,84 +274,68 @@ public class LightPuzzle : MonoBehaviour
         while (queue.Count > 0)
         {
             var (state, moves) = queue.Dequeue();
-
-            // Try flipping each input one at a time
             for (int i = 0; i < n; i++)
             {
-                int newState = state ^ (1 << i); // flip bit i
-
-                if (visited.Contains(newState)) continue;
-                visited.Add(newState);
-
-                if (EvaluateState(p, newState))
-                    return moves + 1; // found minimum
-
-                queue.Enqueue((newState, moves + 1));
+                int next = state ^ (1 << i);
+                if (visited.Contains(next)) continue;
+                visited.Add(next);
+                if (EvaluateState(c, next)) return moves + 1;
+                queue.Enqueue((next, moves + 1));
             }
         }
-
-        return n; // fallback — worst case all inputs
+        return n;
     }
 
-    // ── Evaluate a bitmask state against the circuit ──────────────────
-    bool EvaluateState(PuzzleLayout p, int stateMask)
-    {
-        bool[] inp = new bool[p.inputs.Length];
-        for (int i = 0; i < p.inputs.Length; i++)
-            inp[i] = ((stateMask >> i) & 1) == 1;
+    bool EvaluateState(Circuit c, int mask)
+{
+    bool[] inp = new bool[c.inputs.Length];
+    for (int i = 0; i < c.inputs.Length; i++)
+        inp[i] = ((mask >> i) & 1) == 1;
 
-        bool[] res = EvaluateAll(p, inp);
-        return res[p.outputGate];
-    }
+    bool[] res = EvaluateAll(c, inp);
+    return res[c.outputGate];
+}
 
     // ── Spawn UI ──────────────────────────────────────────────────────
     void SpawnUI()
     {
+        // Clear old objects
         foreach (Transform t in inputsContainer) Destroy(t.gameObject);
         foreach (Transform t in gatesContainer)  Destroy(t.gameObject);
         foreach (Transform t in outputContainer) Destroy(t.gameObject);
+        if (wireContainer != null)
+            foreach (Transform t in wireContainer) Destroy(t.gameObject);
 
         inputToggles.Clear();
-        gateLabels.Clear();
         gateCards.Clear();
         gateRects.Clear();
-        gateValueLabels.Clear();
         spawnedWires.Clear();
 
-        PuzzleLayout p = puzzles[currentPuzzle];
-        inputValues = new bool[p.inputs.Length];
-        gateResults = new bool[p.gates.Length];
+        Circuit c    = currentCircuit;
+        inputValues  = new bool[c.inputs.Length];
+        gateResults  = new bool[c.gates.Length];
 
-        // Calculate minimum moves before spawning
-        minMovesNeeded = CalculateMinMoves(p);
-
-        // If no solution possible (output already 1 or impossible) reroll
-        if (minMovesNeeded == 0)
-        {
-            currentPuzzle = (currentPuzzle + 1) % puzzles.Length;
-            p = puzzles[currentPuzzle];
-            minMovesNeeded = CalculateMinMoves(p);
-        }
+        // ── Evaluate initial state (all inputs false) ─────────────
+        // Fix 2: evaluate immediately so NOT gates show correct output
+        EvaluateSilent();
 
         // ── Spawn inputs ──────────────────────────────────────────
-        for (int i = 0; i < p.inputs.Length; i++)
+        for (int i = 0; i < c.inputs.Length; i++)
         {
             GameObject go  = Instantiate(inputTogglePrefab, inputsContainer);
             Toggle     tog = go.GetComponentInChildren<Toggle>();
 
             TextMeshProUGUI[] texts = go.GetComponentsInChildren<TextMeshProUGUI>();
-            if (texts.Length > 0) texts[0].text = p.inputs[i];
+            if (texts.Length > 0) texts[0].text = c.inputs[i];
 
             int captured = i;
             tog.isOn = false;
             tog.onValueChanged.AddListener((val) =>
             {
-                if (solved || failed) return;
-
+                if (solved || failed || viewOnly) return;
                 inputValues[captured] = val;
                 if (texts.Length > 1)
                     texts[1].text = val ? "1" : "0";
-
                 togglesUsed++;
                 UpdateMovesDisplay();
                 Evaluate();
@@ -279,23 +345,24 @@ public class LightPuzzle : MonoBehaviour
         }
 
         // ── Spawn gates ───────────────────────────────────────────
-        int[] gateColumn = new int[p.gates.Length];
-        for (int i = 0; i < p.gates.Length; i++)
+        int[] gateColumn = new int[c.gates.Length];
+        for (int i = 0; i < c.gates.Length; i++)
         {
             int col = 0;
-            if (p.gates[i].gateA != -1)
-                col = Mathf.Max(col, gateColumn[p.gates[i].gateA] + 1);
-            if (p.gates[i].gateB != -1)
-                col = Mathf.Max(col, gateColumn[p.gates[i].gateB] + 1);
+            if (c.gates[i].gateA != -1)
+                col = Mathf.Max(col, gateColumn[c.gates[i].gateA] + 1);
+            if (c.gates[i].gateB != -1)
+                col = Mathf.Max(col, gateColumn[c.gates[i].gateB] + 1);
             gateColumn[i] = col;
         }
 
         int totalCols = 0;
-        foreach (int c in gateColumn) totalCols = Mathf.Max(totalCols, c + 1);
+        foreach (int col in gateColumn)
+            totalCols = Mathf.Max(totalCols, col + 1);
 
         int[] gatesInCol   = new int[totalCols];
-        int[] gateRowIndex = new int[p.gates.Length];
-        for (int i = 0; i < p.gates.Length; i++)
+        int[] gateRowIndex = new int[c.gates.Length];
+        for (int i = 0; i < c.gates.Length; i++)
         {
             gateRowIndex[i] = gatesInCol[gateColumn[i]];
             gatesInCol[gateColumn[i]]++;
@@ -305,7 +372,7 @@ public class LightPuzzle : MonoBehaviour
         float rowHeight = 140f;
         float startX    = -(totalCols - 1) * colWidth / 2f;
 
-        for (int i = 0; i < p.gates.Length; i++)
+        for (int i = 0; i < c.gates.Length; i++)
         {
             GameObject    go  = Instantiate(gateCardPrefab, gatesContainer);
             RectTransform rt  = go.GetComponent<RectTransform>();
@@ -321,103 +388,106 @@ public class LightPuzzle : MonoBehaviour
                 startY - row * rowHeight
             );
 
-            Sprite gateSprite = GetGateSprite(p.gates[i].type);
-            if (gateSprite != null)
+            Sprite sp = GetGateSprite(c.gates[i].type);
+            if (sp != null)
             {
-                img.sprite         = gateSprite;
+                img.sprite         = sp;
                 img.color          = Color.white;
                 img.type           = Image.Type.Simple;
                 img.preserveAspect = true;
                 img.SetNativeSize();
 
-                float targetHeight = 100f;
-                float aspect = (float)gateSprite.texture.width
-                             / gateSprite.texture.height;
-                rt.sizeDelta = new Vector2(targetHeight * aspect, targetHeight);
+                float h      = 100f;
+                float aspect = (float)sp.texture.width / sp.texture.height;
+                rt.sizeDelta = new Vector2(h * aspect, h);
             }
             else
             {
-                img.sprite = null;
-                img.color  = GetGateColor(p.gates[i].type);
-                rt.sizeDelta = p.gates[i].type == "NOT"
-                    ? new Vector2(90f,  100f)
+                img.sprite   = null;
+                img.color    = GetGateColor(c.gates[i].type);
+                rt.sizeDelta = c.gates[i].type == "NOT"
+                    ? new Vector2(90f, 100f)
                     : new Vector2(140f, 100f);
             }
 
-            TextMeshProUGUI[] texts = go.GetComponentsInChildren<TextMeshProUGUI>();
-            if (texts.Length > 0) texts[0].gameObject.SetActive(false);
-            if (texts.Length > 1) gateValueLabels.Add(texts[1]);
+            // Hide text labels — sprite shows gate type
+            foreach (TextMeshProUGUI txt in go.GetComponentsInChildren<TextMeshProUGUI>())
+                txt.gameObject.SetActive(false);
 
             if (img != null) gateCards.Add(img);
             gateRects.Add(rt);
         }
 
-        // ── Spawn output ──────────────────────────────────────────
+        // ── Spawn output bulb ─────────────────────────────────────
+        // Fix 5: always spawn with explicit size so it's visible
         if (outputIndicatorPrefab != null)
         {
-            GameObject go = Instantiate(outputIndicatorPrefab, outputContainer);
-            outputImage   = go.GetComponent<Image>();
-            if (bulbOff != null)
+            GameObject    go = Instantiate(outputIndicatorPrefab, outputContainer);
+            RectTransform rt = go.GetComponent<RectTransform>();
+            outputImage      = go.GetComponent<Image>();
+
+            // Force size so it's always visible
+            rt.sizeDelta = new Vector2(100f, 120f);
+
+            if (outputImage != null)
             {
-                outputImage.sprite         = bulbOff;
-                outputImage.color          = Color.white;
+                Sprite initial         = bulbOff != null ? bulbOff : null;
+                outputImage.sprite     = initial;
+                outputImage.color      = Color.white;
                 outputImage.preserveAspect = true;
-                outputImage.SetNativeSize();
+                if (initial != null) outputImage.SetNativeSize();
             }
         }
 
         // ── Status ────────────────────────────────────────────────
         if (statusText != null)
         {
-            statusText.text  = p.label + " — OUTPUT: 0";
+            statusText.text  = "SET OUTPUT TO 1";
             statusText.color = new Color(0.18f, 0.48f, 0.23f);
         }
 
         UpdateMovesDisplay();
-        StartCoroutine(DrawWiresNextFrame());
+
+        // Fix 4: draw wires after 2 frames to ensure layout is settled
+        StartCoroutine(DrawWiresAfterFrames(3));
+
+        // Fix 2: refresh visuals immediately with initial gate states
+        RefreshGateVisuals();
+        RefreshBulb();
     }
 
-    // ── Moves display ─────────────────────────────────────────────────
-    void UpdateMovesDisplay()
+    // ── Silent evaluate (no UI refresh) ──────────────────────────────
+    void EvaluateSilent()
     {
-        if (movesText == null) return;
-        int remaining = minMovesNeeded - togglesUsed;
-
-        if (remaining > 0)
+        Circuit c = currentCircuit;
+        for (int i = 0; i < c.gates.Length; i++)
         {
-            movesText.text  = "MOVES LEFT: " + remaining + " / " + minMovesNeeded;
-            movesText.color = remaining == 1
-                ? new Color(1f, 0.4f, 0f)    // orange — last move warning
-                : new Color(0.18f, 0.48f, 0.23f);
-        }
-        else if (remaining == 0 && !solved)
-        {
-            movesText.text  = "LAST MOVE USED";
-            movesText.color = new Color(1f, 0.2f, 0.1f);
-        }
-    }
-
-    // ── Evaluate ──────────────────────────────────────────────────────
-    void Evaluate()
-    {
-        PuzzleLayout p = puzzles[currentPuzzle];
-
-        for (int i = 0; i < p.gates.Length; i++)
-        {
-            Gate g = p.gates[i];
+            Gate g = c.gates[i];
             bool a = g.gateA == -1 ? inputValues[g.inA] : gateResults[g.gateA];
             bool b = false;
             if (g.type != "NOT")
                 b = g.gateB == -1 ? inputValues[g.inB] : gateResults[g.gateB];
             gateResults[i] = EvalGate(g.type, a, b);
         }
+    }
 
-        RefreshUI();
+    // ── Full evaluate + UI refresh ────────────────────────────────────
+    void Evaluate()
+    {
+        EvaluateSilent();
+        RefreshGateVisuals();
+        RefreshBulb();
+        DrawWires();
+        UpdateStatus();
         CheckSolved();
 
-        // Check fail — used all moves without solving
-        if (!solved && togglesUsed >= minMovesNeeded && !gateResults[p.outputGate])
+        Circuit c = currentCircuit;
+        if (!solved && !failed
+            && togglesUsed >= minMoves
+            && !gateResults[c.outputGate])
+        {
             StartCoroutine(FailSequence());
+        }
     }
 
     bool EvalGate(string type, bool a, bool b)
@@ -435,61 +505,93 @@ public class LightPuzzle : MonoBehaviour
         }
     }
 
-    // ── Refresh UI ────────────────────────────────────────────────────
-    void RefreshUI()
+    // ── Refresh gate card colors ──────────────────────────────────────
+    void RefreshGateVisuals()
     {
-        PuzzleLayout p = puzzles[currentPuzzle];
-
-        for (int i = 0; i < gateCards.Count && i < p.gates.Length; i++)
+        Circuit c = currentCircuit;
+        for (int i = 0; i < gateCards.Count && i < c.gates.Length; i++)
         {
             bool active = gateResults[i];
             if (gateCards[i].sprite != null)
-                gateCards[i].color = active ? Color.white
-                    : new Color(0.4f, 0.4f, 0.4f, 1f);
+                // Active = full white (bright), inactive = dimmed
+                gateCards[i].color = active
+                    ? Color.white
+                    : new Color(0.35f, 0.35f, 0.35f, 1f);
             else
                 gateCards[i].color = active
-                    ? new Color(0f, 0.18f, 0.10f, 1f)
-                    : GetGateColor(p.gates[i].type);
-
-            if (i < gateValueLabels.Count && gateValueLabels[i] != null)
-                gateValueLabels[i].text = "out: " + (active ? "1" : "0");
+                    ? new Color(0f, 0.4f, 0.25f, 1f)
+                    : GetGateColor(c.gates[i].type);
         }
+    }
 
-        if (outputImage != null)
-        {
-            bool finalOut = gateResults[p.outputGate];
-            outputImage.sprite         = finalOut ? bulbOn : bulbOff;
-            outputImage.color          = Color.white;
-            outputImage.preserveAspect = true;
+    // ── Refresh output bulb ───────────────────────────────────────────
+    void RefreshBulb()
+    {
+        if (outputImage == null) return;
+        Circuit c       = currentCircuit;
+        bool    finalOut = gateResults[c.outputGate];
+
+        // Fix 5: swap sprite, always white color, force size
+        Sprite target          = finalOut
+            ? (bulbOn  != null ? bulbOn  : null)
+            : (bulbOff != null ? bulbOff : null);
+
+        outputImage.sprite         = target;
+        outputImage.color          = Color.white;
+        outputImage.preserveAspect = true;
+
+        if (target != null)
             outputImage.SetNativeSize();
-        }
-
-        DrawWires();
-
-        if (statusText != null)
+        else
         {
-            bool out1 = gateResults[p.outputGate];
-            statusText.text  = puzzles[currentPuzzle].label
-                             + " — OUTPUT: " + (out1 ? "1" : "0");
-            statusText.color = out1
-                ? new Color(0f, 1f, 0.53f)
+            // No sprite assigned — show colored rectangle as fallback
+            outputImage.color = finalOut
+                ? new Color(1f, 0.9f, 0f, 1f)
+                : new Color(0.1f, 0.2f, 0.1f, 1f);
+        }
+    }
+
+    // ── Update status text ────────────────────────────────────────────
+    void UpdateStatus()
+    {
+        if (statusText == null) return;
+        Circuit c    = currentCircuit;
+        bool    out1 = gateResults[c.outputGate];
+        statusText.text  = "OUTPUT: " + (out1 ? "1" : "0");
+        statusText.color = out1
+            ? new Color(0f, 1f, 0.53f)
+            : new Color(0.18f, 0.48f, 0.23f);
+    }
+
+    // ── Moves display ─────────────────────────────────────────────────
+    void UpdateMovesDisplay()
+    {
+        if (movesText == null) return;
+        int rem = minMoves - togglesUsed;
+
+        if (rem > 0)
+        {
+            movesText.text  = "MOVES: " + togglesUsed + " / " + minMoves;
+            movesText.color = rem == 1
+                ? new Color(1f, 0.4f, 0f)
                 : new Color(0.18f, 0.48f, 0.23f);
+        }
+        else if (!solved)
+        {
+            movesText.text  = "MOVES EXHAUSTED";
+            movesText.color = new Color(1f, 0.2f, 0.1f);
         }
     }
 
     // ── Win check ─────────────────────────────────────────────────────
     void CheckSolved()
     {
-        if (solved || failed) return;
-        if (togglesUsed == 0)  return;
+        if (solved || failed || togglesUsed == 0) return;
+        Circuit c = currentCircuit;
+        if (!gateResults[c.outputGate]) return;
 
-        PuzzleLayout p = puzzles[currentPuzzle];
-        if (!gateResults[p.outputGate]) return;
-
-        // Only win if used exactly the minimum moves
-        if (togglesUsed != minMovesNeeded)
+        if (togglesUsed != minMoves)
         {
-            // Solved but with wrong number — treat as fail
             StartCoroutine(FailSequence());
             return;
         }
@@ -498,13 +600,13 @@ public class LightPuzzle : MonoBehaviour
 
         if (statusText != null)
         {
-            statusText.text  = "SOLVED IN " + togglesUsed + " MOVES — PERFECT";
+            statusText.text  = "SOLVED — PERFECT";
             statusText.color = new Color(0f, 1f, 0.53f);
         }
 
         if (movesText != null)
         {
-            movesText.text  = "MINIMUM MOVES ACHIEVED";
+            movesText.text  = "MINIMUM MOVES";
             movesText.color = new Color(0f, 1f, 0.53f);
         }
 
@@ -515,6 +617,7 @@ public class LightPuzzle : MonoBehaviour
 
     System.Collections.IEnumerator SolvedSequence()
     {
+        // Flash all wires bright green
         foreach (RectTransform w in spawnedWires)
         {
             if (w == null) continue;
@@ -523,8 +626,7 @@ public class LightPuzzle : MonoBehaviour
         }
 
         yield return new WaitForSeconds(2.5f);
-        PuzzleManager.Instance.NotifySolved("light");
-    }
+        PuzzleManager.Instance.NotifySolved(factorName);    }
 
     // ── Fail sequence ─────────────────────────────────────────────────
     System.Collections.IEnumerator FailSequence()
@@ -532,7 +634,6 @@ public class LightPuzzle : MonoBehaviour
         if (failed) yield break;
         failed = true;
 
-        // Flash wires red
         foreach (RectTransform w in spawnedWires)
         {
             if (w == null) continue;
@@ -546,24 +647,15 @@ public class LightPuzzle : MonoBehaviour
             statusText.color = new Color(1f, 0.15f, 0.1f);
         }
 
-        if (movesText != null)
-        {
-            movesText.text  = "TOO MANY MOVES — PENALTY";
-            movesText.color = new Color(1f, 0.15f, 0.1f);
-        }
-
-        // Apply instability penalty
         PuzzleManager.Instance.NotifyFailed(0.2f);
 
         yield return new WaitForSeconds(2f);
 
-        // Load a new random circuit
-        solved       = false;
-        failed       = false;
-        hintUsed     = false;
-        togglesUsed  = 0;
-        currentPuzzle = Random.Range(0, puzzles.Length);
-        SpawnUI();
+        solved      = false;
+        failed      = false;
+        hintUsed    = false;
+        togglesUsed = 0;
+        GenerateAndSpawn();
     }
 
     // ── Hint ──────────────────────────────────────────────────────────
@@ -575,46 +667,42 @@ public class LightPuzzle : MonoBehaviour
             return;
         }
 
-        PuzzleLayout p     = puzzles[currentPuzzle];
-        int          count = p.inputs.Length;
-        int          rows  = (int)Mathf.Pow(2, count);
+        Circuit c     = currentCircuit;
+        int     count = c.inputs.Length;
+        int     rows  = 1 << count;
 
         for (int r = 0; r < rows; r++)
         {
-            bool[] test = new bool[count];
+            bool[] test  = new bool[count];
+            int    flips = 0;
             for (int i = 0; i < count; i++)
-                test[i] = ((r >> (count - 1 - i)) & 1) == 1;
-
-            // Only show hint if it uses exactly minimum moves from start
-            int flips = 0;
-            for (int i = 0; i < count; i++)
-                if (test[i]) flips++;
-
-            if (flips != minMovesNeeded) continue;
-
-            bool[] res = EvaluateAll(p, test);
-            if (res[p.outputGate])
             {
-                string hint = "";
-                for (int i = 0; i < count; i++)
-                    if (test[i]) hint += p.inputs[i] + " ";
-
-                if (hintText != null)
-                    hintText.text = "TOGGLE: " + hint.Trim();
-
-                hintUsed = true;
-                PuzzleManager.Instance.NotifyFailed(0.05f);
-                return;
+                test[i] = ((r >> i) & 1) == 1;
+                if (test[i]) flips++;
             }
+
+            if (flips != minMoves) continue;
+
+            bool[] res = EvaluateAll(c, test);
+            if (!res[c.outputGate]) continue;
+
+            string hint = "TOGGLE: ";
+            for (int i = 0; i < count; i++)
+                if (test[i]) hint += c.inputs[i] + " ";
+
+            if (hintText != null) hintText.text = hint.Trim();
+            hintUsed = true;
+            PuzzleManager.Instance.NotifyFailed(0.05f);
+            return;
         }
     }
 
-    bool[] EvaluateAll(PuzzleLayout p, bool[] inputs)
+    bool[] EvaluateAll(Circuit c, bool[] inputs)
     {
-        bool[] res = new bool[p.gates.Length];
-        for (int i = 0; i < p.gates.Length; i++)
+        bool[] res = new bool[c.gates.Length];
+        for (int i = 0; i < c.gates.Length; i++)
         {
-            Gate g = p.gates[i];
+            Gate g = c.gates[i];
             bool a = g.gateA == -1 ? inputs[g.inA] : res[g.gateA];
             bool b = false;
             if (g.type != "NOT")
@@ -627,39 +715,51 @@ public class LightPuzzle : MonoBehaviour
     // ── Reset ─────────────────────────────────────────────────────────
     public void ResetPuzzle()
     {
-        if (solved) return;
+        if (solved || viewOnly) return;
         foreach (Toggle t in inputToggles) t.isOn = false;
     }
 
     // ── Wire drawing ──────────────────────────────────────────────────
-    System.Collections.IEnumerator DrawWiresNextFrame()
-    {
+    System.Collections.IEnumerator DrawWiresAfterFrames(int frames)
+{
+    for (int i = 0; i < frames; i++)
         yield return null;
-        DrawWires();
-    }
 
+    // Force all layout groups to recalculate before drawing wires
+    UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(
+        inputsContainer as RectTransform);
+    UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(
+        gatesContainer as RectTransform);
+
+    DrawWires();
+}
     void DrawWires()
     {
-        if (wirePrefab == null) return;
-
-        foreach (RectTransform w in spawnedWires)
-            if (w != null) Destroy(w.gameObject);
+        // Fix 4: destroy old wires safely
+        for (int i = spawnedWires.Count - 1; i >= 0; i--)
+        {
+            if (spawnedWires[i] != null)
+                Destroy(spawnedWires[i].gameObject);
+        }
         spawnedWires.Clear();
 
-        PuzzleLayout p = puzzles[currentPuzzle];
+        if (wirePrefab == null) return;
+        if (gateRects.Count == 0) return;
 
-        for (int i = 0; i < p.gates.Length; i++)
+        Circuit c = currentCircuit;
+
+        for (int i = 0; i < c.gates.Length; i++)
         {
-            Gate g = p.gates[i];
+            Gate g = c.gates[i];
 
-            if (g.gateA != -1)
+            if (g.gateA != -1 && g.gateA < gateRects.Count)
                 DrawWire(gateRects[g.gateA], gateRects[i], gateResults[g.gateA]);
             else if (g.inA >= 0 && g.inA < inputToggles.Count)
                 DrawWireFromInput(g.inA, gateRects[i], inputValues[g.inA]);
 
             if (g.type != "NOT")
             {
-                if (g.gateB != -1)
+                if (g.gateB != -1 && g.gateB < gateRects.Count)
                     DrawWire(gateRects[g.gateB], gateRects[i], gateResults[g.gateB]);
                 else if (g.inB >= 0 && g.inB < inputToggles.Count)
                     DrawWireFromInput(g.inB, gateRects[i], inputValues[g.inB]);
@@ -669,44 +769,65 @@ public class LightPuzzle : MonoBehaviour
 
     void DrawWire(RectTransform from, RectTransform to, bool active)
     {
-        Vector2 start = from.anchoredPosition + new Vector2(from.sizeDelta.x * 0.5f, 0f);
-        Vector2 end   = to.anchoredPosition   - new Vector2(to.sizeDelta.x   * 0.5f, 0f);
+        if (from == null || to == null) return;
+        Vector2 start = from.anchoredPosition
+                      + new Vector2(from.sizeDelta.x * 0.5f, 0f);
+        Vector2 end   = to.anchoredPosition
+                      - new Vector2(to.sizeDelta.x   * 0.5f, 0f);
         DrawBezierWire(start, end, active);
     }
 
-    void DrawWireFromInput(int inputIndex, RectTransform to, bool active)
-    {
-        if (inputIndex >= inputToggles.Count) return;
-        RectTransform fromRT = inputToggles[inputIndex]
-                               .GetComponentInParent<RectTransform>();
-        if (fromRT == null) return;
+    void DrawWireFromInput(int idx, RectTransform to, bool active)
+{
+    if (idx >= inputToggles.Count || to == null) return;
 
-        Vector3 world    = fromRT.TransformPoint(
-                           new Vector3(fromRT.sizeDelta.x * 0.5f, 0f, 0f));
-        Vector2 localPos = ((RectTransform)gatesContainer)
-                           .InverseTransformPoint(world);
-        Vector2 end      = to.anchoredPosition
-                         - new Vector2(to.sizeDelta.x * 0.5f, 0f);
+    // Get the toggle's root RectTransform
+    RectTransform fromRT = inputToggles[idx]
+                           .GetComponentInParent<RectTransform>();
+    if (fromRT == null) return;
 
-        DrawBezierWire(localPos, end, active);
-    }
+    // Use right edge of toggle as wire start point
+    Vector2 fromSize   = fromRT.sizeDelta;
+    Vector3 localRight = new Vector3(fromSize.x * 0.5f, 0f, 0f);
+
+    // Convert from inputsContainer space → world → gatesContainer space
+    Vector3 worldPoint = fromRT.TransformPoint(localRight);
+    RectTransform gatesRT = gatesContainer as RectTransform;
+
+    Vector2 localInGates;
+    if (gatesRT != null)
+        localInGates = gatesRT.InverseTransformPoint(worldPoint);
+    else
+        localInGates = gatesContainer.InverseTransformPoint(worldPoint);
+
+    Vector2 end = to.anchoredPosition - new Vector2(to.sizeDelta.x * 0.5f, 0f);
+
+    // Only draw if positions are valid (not zero-zero which means layout not ready)
+    if (localInGates == Vector2.zero && to.anchoredPosition == Vector2.zero) return;
+
+    DrawBezierWire(localInGates, end, active);
+}
 
     void DrawBezierWire(Vector2 start, Vector2 end, bool active)
     {
         Transform parent = wireContainer != null ? wireContainer : gatesContainer;
+        if (parent == null) return;
 
-        Color wireColor = active
-            ? new Color(0f,    1f,    0.53f, 1f  )
+        Color color = active
+            ? new Color(0f,    1f,    0.53f, 1f)
             : new Color(0.15f, 0.35f, 0.18f, 0.9f);
 
-        List<Vector2> points = BezierWire.GetPoints(start, end, 16);
+        List<Vector2> pts = BezierWire.GetPoints(start, end, 16);
 
-        for (int i = 0; i < points.Count - 1; i++)
+        for (int i = 0; i < pts.Count - 1; i++)
         {
-            Vector2 s   = points[i];
-            Vector2 e   = points[i + 1];
+            Vector2 s   = pts[i];
+            Vector2 e   = pts[i + 1];
             Vector2 dir = e - s;
-            float len   = dir.magnitude;
+            float   len = dir.magnitude;
+
+            if (len < 0.01f) continue; // skip zero-length segments
+
             float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
 
             GameObject    wire = Instantiate(wirePrefab, parent);
@@ -717,12 +838,12 @@ public class LightPuzzle : MonoBehaviour
             rt.sizeDelta        = new Vector2(len + 1f, active ? 4f : 2f);
             rt.localRotation    = Quaternion.Euler(0f, 0f, angle);
 
-            if (img != null) img.color = wireColor;
+            if (img != null) img.color = color;
             spawnedWires.Add(rt);
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────
+    // ── Sprite / color helpers ────────────────────────────────────────
     Sprite GetGateSprite(string type)
     {
         switch (type)
@@ -742,21 +863,15 @@ public class LightPuzzle : MonoBehaviour
     {
         switch (type)
         {
-            case "AND":  return colAND;
-            case "OR":   return colOR;
-            case "NOT":  return colNOT;
-            case "XOR":  return colXOR;
-            case "NAND": return colNAND;
-            case "NOR":  return colNOR;
-            case "XNOR": return colXNOR;
+            case "AND":  return new Color(0f,    0.10f, 0.04f, 1f);
+            case "OR":   return new Color(0f,    0.06f, 0.10f, 1f);
+            case "NOT":  return new Color(0.10f, 0.02f, 0.02f, 1f);
+            case "XOR":  return new Color(0.10f, 0.05f, 0f,    1f);
+            case "NAND": return new Color(0.06f, 0f,    0.10f, 1f);
+            case "NOR":  return new Color(0f,    0.10f, 0.10f, 1f);
+            case "XNOR": return new Color(0.10f, 0.10f, 0f,    1f);
             default:     return colInactive;
         }
-    }
-
-    void UpdateAttempts()
-    {
-        if (attemptsText != null)
-            attemptsText.text = "TOGGLES: " + togglesUsed;
     }
 }
 
@@ -766,21 +881,21 @@ public static class BezierWire
     public static List<Vector2> GetPoints(Vector2 start, Vector2 end,
                                           int segments = 12)
     {
-        var     points = new List<Vector2>();
-        float   dx     = Mathf.Abs(end.x - start.x);
-        Vector2 cp1    = new Vector2(start.x + dx * 0.5f, start.y);
-        Vector2 cp2    = new Vector2(end.x   - dx * 0.5f, end.y);
+        var     pts = new List<Vector2>();
+        float   dx  = Mathf.Abs(end.x - start.x);
+        Vector2 cp1 = new Vector2(start.x + dx * 0.5f, start.y);
+        Vector2 cp2 = new Vector2(end.x   - dx * 0.5f, end.y);
 
         for (int i = 0; i <= segments; i++)
         {
-            float   t   = i / (float)segments;
-            float   u   = 1 - t;
-            Vector2 pt  = u*u*u * start
-                        + 3*u*u*t * cp1
-                        + 3*u*t*t * cp2
-                        + t*t*t   * end;
-            points.Add(pt);
+            float   t  = i / (float)segments;
+            float   u  = 1f - t;
+            Vector2 pt = u*u*u * start
+                       + 3*u*u*t * cp1
+                       + 3*u*t*t * cp2
+                       + t*t*t   * end;
+            pts.Add(pt);
         }
-        return points;
+        return pts;
     }
 }

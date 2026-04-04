@@ -76,7 +76,7 @@ public class InstabilityManager : MonoBehaviour
         float extension = stageBaseTimes[currentStage] * extensionPercents[currentStage];
         timeRemaining = Mathf.Min(timeRemaining + extension, currentStageMax);
 
-        if (puzzlesSolved >= 5)
+        if (puzzlesSolved >= 3)
         {
             running = false;
             OnAllPuzzlesSolved?.Invoke();

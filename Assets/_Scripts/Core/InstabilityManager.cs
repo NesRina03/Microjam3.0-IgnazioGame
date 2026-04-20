@@ -6,7 +6,7 @@ public class InstabilityManager : MonoBehaviour
     public static InstabilityManager Instance;
 
     [Header("Stage Base Times (seconds)")]
-    public float[] stageBaseTimes = { 900f, 600f, 420f };
+    public float[] stageBaseTimes = { 200f, 100f, 50f };
 
     [Header("Extension % per puzzle solved (per stage)")]
     public float[] extensionPercents = { 0.10f, 0.20f, 0.30f };

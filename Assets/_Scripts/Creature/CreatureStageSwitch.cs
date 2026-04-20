@@ -26,11 +26,6 @@ public class CreatureStageSwitch : MonoBehaviour
     public AudioClip stage3Sound;
     public AudioClip gameOverSound;
 
-    [Header("Timing (seconds)")]
-    public float timeToStage2 = 60f;
-    public float timeToStage3 = 50f;
-    public float timeToStage4 = 45f;
-
     private int currentStage = 1;
     private float lockedX;
     private float lockedZ;
@@ -51,9 +46,27 @@ public class CreatureStageSwitch : MonoBehaviour
         PlaySound(stage1Sound);
         SavePosition(stage1);
 
-        Invoke("SwitchToStage2", timeToStage2);
-        Invoke("SwitchToStage3", timeToStage3);
-        Invoke("GameOver", timeToStage4);
+        // Driven by InstabilityManager events — no independent Invoke timers
+        if (InstabilityManager.Instance != null)
+        {
+            InstabilityManager.Instance.OnStageChanged.AddListener(OnInstabilityStageChanged);
+            InstabilityManager.Instance.OnCreatureFreed.AddListener(GameOver);
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (InstabilityManager.Instance != null)
+        {
+            InstabilityManager.Instance.OnStageChanged.RemoveListener(OnInstabilityStageChanged);
+            InstabilityManager.Instance.OnCreatureFreed.RemoveListener(GameOver);
+        }
+    }
+
+    void OnInstabilityStageChanged(int stage)
+    {
+        if (stage == 2) SwitchToStage2();
+        else if (stage == 3) SwitchToStage3();
     }
 
     void PlaySound(AudioClip clip)
@@ -96,7 +109,6 @@ public class CreatureStageSwitch : MonoBehaviour
     SwitchToStage(stage1, stage2);
     currentStage = 2;
     PlaySound(stage2Sound);
-    if (InstabilityManager.Instance != null) InstabilityManager.Instance.currentStage = 1; // 0-indexed
 }
 
 void SwitchToStage3()
@@ -104,7 +116,6 @@ void SwitchToStage3()
     SwitchToStage(stage2, stage3);
     currentStage = 3;
     PlaySound(stage3Sound);
-    if (InstabilityManager.Instance != null) InstabilityManager.Instance.currentStage = 2;
 }
 
     void GameOver()

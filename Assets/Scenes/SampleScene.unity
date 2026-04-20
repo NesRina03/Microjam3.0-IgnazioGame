@@ -4245,9 +4245,6 @@ MonoBehaviour:
   stage2Sound: {fileID: 8300000, guid: 9201a3c068985eb4ca7934e039efc349, type: 3}
   stage3Sound: {fileID: 8300000, guid: 52668acd1fc1e8a45b76630af928f61c, type: 3}
   gameOverSound: {fileID: 8300000, guid: b71ef3e4fafe22c4baf84564d37b60a0, type: 3}
-  timeToStage2: 15
-  timeToStage3: 30
-  timeToStage4: 45
 --- !u!4 &286397974
 Transform:
   m_ObjectHideFlags: 0
@@ -85240,6 +85237,18 @@ PrefabInstance:
     - target: {fileID: 6478188990877434316, guid: 37bc8173c30dd627c8eb8060dfb5f8a0, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8826367928631845279, guid: 37bc8173c30dd627c8eb8060dfb5f8a0, type: 3}
+      propertyPath: 'stageBaseTimes.Array.data[0]'
+      value: 200
+      objectReference: {fileID: 0}
+    - target: {fileID: 8826367928631845279, guid: 37bc8173c30dd627c8eb8060dfb5f8a0, type: 3}
+      propertyPath: 'stageBaseTimes.Array.data[1]'
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 8826367928631845279, guid: 37bc8173c30dd627c8eb8060dfb5f8a0, type: 3}
+      propertyPath: 'stageBaseTimes.Array.data[2]'
+      value: 50
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

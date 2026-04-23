@@ -82,13 +82,6 @@ public class PuzzleManager : MonoBehaviour
         if (backgroundDim != null)
             backgroundDim.SetActive(false);
 
-        // Unfreeze player
-        fpsController.enabled = true;
-
-        // Lock cursor back
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-
         IsPuzzleOpen = false;
         currentPanel = null;
 
@@ -97,7 +90,8 @@ public class PuzzleManager : MonoBehaviour
 
         activeTerminal = null;
 
-        fpsController.enabled = true;        
+        // Only restore FPS/cursor if the game is still in the Playing state.
+        // TriggerWin / TriggerGameOver may have already changed state and unlocked the cursor.
         GameManager.Instance.RestorePlayState();
     }
 

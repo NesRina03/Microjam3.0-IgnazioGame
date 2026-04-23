@@ -36,8 +36,40 @@ public class WordleScript : MonoBehaviour
 
     void Start()
     {
-        targetWord = wordBank[Random.Range(0, wordBank.Length)];
         BuildGrid();
+        ResetGame();
+    }
+
+    void OnEnable()
+    {
+        // Reset every time the panel is shown (handles re-open after failure)
+        if (grid[0, 0] != null) // grid already built
+            ResetGame();
+    }
+
+    void ResetGame()
+    {
+        targetWord   = wordBank[Random.Range(0, wordBank.Length)];
+        currentGuess = "";
+        currentRow   = 0;
+        gameOver     = false;
+
+        // Clear all cells
+        for (int r = 0; r < 6; r++)
+            for (int c = 0; c < 5; c++)
+                if (grid[r, c] != null) grid[r, c].text = "";
+
+        // Reset row background colors
+        for (int r = 0; r < 6; r++)
+        {
+            foreach (var img in rowObjects[r].GetComponentsInChildren<Image>())
+                img.color = defaultColor;
+        }
+
+        // Reset keyboard button colors
+        if (letterButtons != null)
+            foreach (Button btn in letterButtons)
+                if (btn != null) btn.GetComponent<Image>().color = defaultColor;
     }
 
     void Update()

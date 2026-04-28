@@ -47,7 +47,7 @@ public class WordleScript : MonoBehaviour
             ResetGame();
     }
 
-    void ResetGame()
+    public void ResetGame()
     {
         targetWord   = wordBank[Random.Range(0, wordBank.Length)];
         currentGuess = "";

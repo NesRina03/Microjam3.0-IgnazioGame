@@ -5,10 +5,10 @@ public class InstabilityManager : MonoBehaviour
 {
     public static InstabilityManager Instance;
 
-    [Header("Stage Base Times (seconds)")]
-    public float[] stageBaseTimes = { 200f, 100f, 50f };
+    [Header("Stage Timer")]
+    [SerializeField] float stageDurationSeconds = 60f;
 
-    [Header("Extension % per puzzle solved (per stage)")]
+    [Header("Reward % per puzzle solved (per stage)")]
     public float[] extensionPercents = { 0.10f, 0.20f, 0.30f };
 
     [Header("Cap: max multiplier on base time")]
@@ -31,13 +31,13 @@ public class InstabilityManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-  public void StartGame()
-{
-    puzzlesSolved = 0;
-    currentStage  = 0;
-    running       = true;
-    StartStage(0);
-}
+    public void StartGame()
+    {
+        puzzlesSolved = 0;
+        currentStage  = 0;
+        running       = true;
+        StartStage(0);
+    }
 
     void Update()
     {
@@ -50,28 +50,26 @@ public class InstabilityManager : MonoBehaviour
     void StartStage(int stage)
     {
         currentStage = stage;
-        timeRemaining = stageBaseTimes[stage];
-        currentStageMax = stageBaseTimes[stage] * maxExtensionMultiplier;
+        timeRemaining = stageDurationSeconds;
+        currentStageMax = stageDurationSeconds * maxExtensionMultiplier;
         OnStageChanged?.Invoke(stage + 1);
     }
 
-   void AdvanceStage()
-{
-    int nextStage = currentStage + 1;
-    if (nextStage >= stageBaseTimes.Length)
+    void AdvanceStage()
     {
-        running = false;
-        OnCreatureFreed?.Invoke(); // creature handles delay then calls TriggerGameOver
-        // REMOVE GameManager.Instance.TriggerGameOver() from here
+        int nextStage = currentStage + 1;
+        if (nextStage >= extensionPercents.Length)
+        {
+            running = false;
+            OnCreatureFreed?.Invoke(); // creature handles delay then calls TriggerGameOver
+        }
+        else StartStage(nextStage);
     }
-    else StartStage(nextStage);
-}
 
     public void OnPuzzleSolved()
     {
         puzzlesSolved++;
-        float extension = stageBaseTimes[currentStage] * extensionPercents[currentStage];
-        timeRemaining = Mathf.Min(timeRemaining + extension, currentStageMax);
+        AddTime(stageDurationSeconds * extensionPercents[currentStage]);
 
         if (puzzlesSolved >= 3)
         {
@@ -81,8 +79,25 @@ public class InstabilityManager : MonoBehaviour
         }
     }
 
+    public void AddTime(float amountSeconds)
+    {
+        if (!running) return;
+
+        timeRemaining = Mathf.Min(timeRemaining + amountSeconds, currentStageMax);
+    }
+
+    public bool SpendTime(float amountSeconds)
+    {
+        if (!running) return false;
+
+        if (timeRemaining < amountSeconds) return false;
+
+        timeRemaining -= amountSeconds;
+        return true;
+    }
+
     public float GetStageProgress()
     {
-        return timeRemaining / stageBaseTimes[currentStage];
+        return Mathf.Clamp01(timeRemaining / stageDurationSeconds);
     }
 }

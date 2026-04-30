@@ -16,78 +16,65 @@ public class InteractionRaycaster : MonoBehaviour
     PuzzleTerminal currentTerminal;
 
     void Update()
-{
-    Debug.Log("A");
-
-    if (PuzzleManager.Instance == null)
     {
-        Debug.Log("B - PM is null");
-        return;
-    }
-
-    Debug.Log("C - PM exists");
-
-    if (PuzzleManager.Instance.IsPuzzleOpen)
-    {
-        Debug.Log("D - puzzle is open");
-        HidePrompt();
-        return;
-    }
-
-    Debug.Log("E - about to shoot ray");
-
-    ShootRay();
-
-    if (currentTerminal != null && Input.GetKeyDown(interactKey))
-        PuzzleManager.Instance.OpenPuzzle(currentTerminal);
-}
-
-void ShootRay()
-{
-    if (playerCamera == null)
-    {
-        Debug.Log("CAMERA IS NULL");
-        return;
-    }
-
-    Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-    Debug.DrawRay(ray.origin, ray.direction * interactRange, Color.green);
-
-    // TEMPORARY — no layer filter, hits everything
-    bool hit = Physics.Raycast(ray, out RaycastHit hitInfo, interactRange);
-
-    Debug.Log("Hit: " + hit);
-
-    if (hit)
-    {
-        Debug.Log("Hit object: " + hitInfo.collider.gameObject.name);
-        Debug.Log("Object layer: " + hitInfo.collider.gameObject.layer);
-
-        PuzzleTerminal terminal = hitInfo.collider.GetComponent<PuzzleTerminal>();
-        Debug.Log("Has PuzzleTerminal: " + (terminal != null));
-
-        if (terminal != null && !terminal.IsSolved)
+        // Block ALL input when Pigpen puzzle is open
+        if (PigpenBoardController.Instance != null && PigpenBoardController.Instance.IsOpen)
         {
-            // Skip door terminal if not in Level 2
-            if (terminal.FactorName == "door" && GameManager.Instance != null)
-            {
-                if (GameManager.Instance.currentState != GameManager.GameState.Level2)
-                {
-                    currentTerminal = null;
-                    HidePrompt();
-                    return;
-                }
-            }
-
-            currentTerminal = terminal;
-            ShowPrompt("[E] " + terminal.PromptLabel);
+            HidePrompt();
             return;
         }
+
+        if (PuzzleManager.Instance == null)
+            return;
+
+        // Check for board interaction
+        Ray earlyRay = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        RaycastHit[] earlyHits = Physics.RaycastAll(earlyRay, interactRange);
+        foreach (RaycastHit h in earlyHits)
+        {
+            PigpenBoardController board = h.collider.GetComponent<PigpenBoardController>();
+            if (board != null)
+            {
+                ShowPrompt("[E] Inspect Board");
+                if (Input.GetKeyDown(interactKey))
+                    board.OpenPuzzle();
+                return;
+            }
+        }
+
+        if (PuzzleManager.Instance.IsPuzzleOpen)
+        {
+            HidePrompt();
+            return;
+        }
+
+        ShootRay();
+
+        if (currentTerminal != null && Input.GetKeyDown(interactKey))
+            PuzzleManager.Instance.OpenPuzzle(currentTerminal);
     }
 
-    currentTerminal = null;
-    HidePrompt();
-}
+    void ShootRay()
+    {
+        if (playerCamera == null) return;
+
+        Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        bool hit = Physics.Raycast(ray, out RaycastHit hitInfo, interactRange);
+
+        if (hit)
+        {
+            PuzzleTerminal terminal = hitInfo.collider.GetComponent<PuzzleTerminal>();
+            if (terminal != null && !terminal.IsSolved)
+            {
+                currentTerminal = terminal;
+                ShowPrompt("[E] " + terminal.PromptLabel);
+                return;
+            }
+        }
+
+        currentTerminal = null;
+        HidePrompt();
+    }
 
     void ShowPrompt(string text)
     {

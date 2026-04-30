@@ -11,9 +11,13 @@ public class PigpenBoardController : MonoBehaviour
     [SerializeField] float interactDistance = 3f;
     [SerializeField] GameObject promptObject;
 
-    public bool IsOpen => isOpen;
+    [Header("Optional — shown after solve")]
+    [SerializeField] GameObject solvedIndicator;
 
-    private bool isOpen  = false;
+    public bool IsOpen   => isOpen;
+    public bool IsSolved => isSolved;
+
+    private bool isOpen   = false;
     private bool isSolved = false;
     private Transform player;
 
@@ -22,8 +26,9 @@ public class PigpenBoardController : MonoBehaviour
     void Start()
     {
         player = GameObject.FindGameObjectWithTag("Player").transform;
-        if (pigpenCanvas) pigpenCanvas.SetActive(false);
-        if (promptObject) promptObject.SetActive(false);
+        if (pigpenCanvas)    pigpenCanvas.SetActive(false);
+        if (promptObject)    promptObject.SetActive(false);
+        if (solvedIndicator) solvedIndicator.SetActive(false);
     }
 
     void Update()
@@ -41,6 +46,8 @@ public class PigpenBoardController : MonoBehaviour
 
     public void OpenPuzzle()
     {
+        if (isSolved) return;
+
         isOpen = true;
         Debug.Log("OpenPuzzle called! Canvas is: " + (pigpenCanvas == null ? "NULL" : pigpenCanvas.name));
         if (pigpenCanvas) pigpenCanvas.SetActive(true);
@@ -60,7 +67,8 @@ public class PigpenBoardController : MonoBehaviour
     {
         isSolved = true;
         isOpen   = false;
-        if (promptObject) promptObject.SetActive(false);
-        Debug.Log("Pigpen puzzle solved!");
+        if (promptObject)    promptObject.SetActive(false);
+        if (solvedIndicator) solvedIndicator.SetActive(true);
+        Debug.Log("Pigpen puzzle solved — board locked.");
     }
 }

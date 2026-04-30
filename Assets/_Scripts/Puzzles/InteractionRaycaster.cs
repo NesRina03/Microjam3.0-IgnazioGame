@@ -17,8 +17,13 @@ public class InteractionRaycaster : MonoBehaviour
 
     void Update()
     {
-        // Block ALL input when Pigpen puzzle is open
         if (PigpenBoardController.Instance != null && PigpenBoardController.Instance.IsOpen)
+        {
+            HidePrompt();
+            return;
+        }
+
+        if (MicroscopeController.Instance != null && MicroscopeController.Instance.IsCanvasOpen)
         {
             HidePrompt();
             return;
@@ -27,17 +32,25 @@ public class InteractionRaycaster : MonoBehaviour
         if (PuzzleManager.Instance == null)
             return;
 
-        // Check for board interaction
         Ray earlyRay = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         RaycastHit[] earlyHits = Physics.RaycastAll(earlyRay, interactRange);
         foreach (RaycastHit h in earlyHits)
         {
             PigpenBoardController board = h.collider.GetComponent<PigpenBoardController>();
-            if (board != null)
+            if (board != null && !board.IsSolved)
             {
                 ShowPrompt("[E] Inspect Board");
                 if (Input.GetKeyDown(interactKey))
                     board.OpenPuzzle();
+                return;
+            }
+
+            MicroscopeController scope = h.collider.GetComponent<MicroscopeController>();
+            if (scope != null && !scope.IsCanvasOpen)
+            {
+                ShowPrompt("[E] Look through microscope");
+                if (Input.GetKeyDown(interactKey))
+                    scope.OpenCanvas();
                 return;
             }
         }

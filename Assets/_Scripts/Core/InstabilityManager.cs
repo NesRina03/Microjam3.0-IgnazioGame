@@ -75,7 +75,7 @@ public class InstabilityManager : MonoBehaviour
         {
             running = false;
             OnAllPuzzlesSolved?.Invoke();
-            GameManager.Instance.TriggerWin();
+            GameManager.Instance.TransitionToLevel2();
         }
     }
 
@@ -99,5 +99,13 @@ public class InstabilityManager : MonoBehaviour
     public float GetStageProgress()
     {
         return Mathf.Clamp01(timeRemaining / stageDurationSeconds);
+    }
+
+    public float GetTotalTimeRemaining()
+    {
+        // Total remaining = current stage time + all future stages' full duration
+        int stagesRemaining = extensionPercents.Length - currentStage;
+        float totalTime = timeRemaining + ((stagesRemaining - 1) * stageDurationSeconds);
+        return totalTime;
     }
 }

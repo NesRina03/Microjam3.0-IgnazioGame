@@ -5,8 +5,12 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
-    public enum GameState { MainMenu, Playing, Paused, Win, Lose }
+    public enum GameState { MainMenu, Playing, Paused, Win, Lose, Level2 }
     public GameState currentState;
+    GameState _stateBeforePause;
+
+    [Header("Level Settings")]
+    public bool enableLevel2 = false;
 
     [Header("UI Screens")]
     public GameObject mainMenuCanvas;
@@ -15,6 +19,7 @@ public class GameManager : MonoBehaviour
     public GameObject winCanvas;
     public GameObject loseCanvas;
     public GameObject optionsCanvas;
+    public GameObject level2Canvas;
 
     private FirstPersonController _fps;
     private HUDController _hud;
@@ -58,14 +63,16 @@ void Start()
 
     void Update()
     {
-        if (currentState == GameState.Playing && Input.GetKeyDown(KeyCode.Escape))
+        // Allow pausing both in Playing and Level2 states
+        if ((currentState == GameState.Playing || currentState == GameState.Level2) && Input.GetKeyDown(KeyCode.Escape))
             TogglePause();
     }
 
     // Called by PuzzleManager.ClosePuzzle() to restore cursor + FPS after a puzzle closes
     public void RestorePlayState()
     {
-        if (currentState != GameState.Playing) return;
+        // Restore controls for Playing or Level2
+        if (currentState != GameState.Playing && currentState != GameState.Level2) return;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible   = false;
         if (_fps != null) _fps.enabled = true;
@@ -106,8 +113,15 @@ void Start()
 
         if (currentState == GameState.Paused)
         {
-            currentState = GameState.Playing;
-            SetScreens(hud: true);
+            // Unpause: return to whatever state we were in before pause
+            currentState = _stateBeforePause;
+
+            // Show correct screens based on restored state
+            if (currentState == GameState.Level2)
+                SetScreens(hud: true, level2: true);
+            else
+                SetScreens(hud: true);
+
             Time.timeScale   = 1f;
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible   = false;
@@ -120,6 +134,9 @@ void Start()
             if (PuzzleManager.Instance != null && PuzzleManager.Instance.IsPuzzleOpen)
                 PuzzleManager.Instance.ClosePuzzle();
 
+            // Remember previous state (Playing or Level2)
+            _stateBeforePause = currentState;
+
             currentState = GameState.Paused;
             SetScreens(hud: true, pause: true);
             Time.timeScale   = 0f;
@@ -128,7 +145,26 @@ void Start()
             if (_fps != null) _fps.enabled = false;
         }
     }
+    public void TransitionToLevel2()
+    {
+        if (!enableLevel2)
+        {
+            TriggerWin();
+            return;
+        }
 
+        currentState = GameState.Level2;
+        SetScreens(hud: true, level2: true);
+        Time.timeScale = 1f;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        if (_fps != null) _fps.enabled = true;
+        if (PuzzleManager.Instance != null)
+        {
+            PuzzleManager.Instance.ForceReset();
+            Debug.Log("[GameManager] TransitionToLevel2: ForceReset called on PuzzleManager");
+        }
+    }
    public void TriggerWin()
 {
     currentState = GameState.Win;
@@ -219,12 +255,13 @@ void Start()
     }
 
     void SetScreens(bool mainMenu = false, bool hud = false,
-                    bool pause = false,    bool win = false, bool lose = false)
+                    bool pause = false,    bool win = false, bool lose = false, bool level2 = false)
     {
         if (mainMenuCanvas) mainMenuCanvas.SetActive(mainMenu);
         if (hudCanvas)      hudCanvas.SetActive(hud);
         if (pauseCanvas)    pauseCanvas.SetActive(pause);
         if (winCanvas)      winCanvas.SetActive(win);
         if (loseCanvas)     loseCanvas.SetActive(lose);
+        if (level2Canvas)   level2Canvas.SetActive(level2);
     }
 }

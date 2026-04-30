@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 using System.Collections;
 
@@ -61,10 +62,21 @@ public class WordleScript : MonoBehaviour
 
     public void ResetGame()
     {
+        // Stop any reveal/hint coroutines and cancel pending PuzzleSolved invoke
+        Debug.Log("[Wordle] ResetGame() called - stopping coroutines and cancelling pending invokes");
+        try { StopAllCoroutines(); } catch { }
+        if (hintStatusCoroutine != null)
+        {
+            try { StopCoroutine(hintStatusCoroutine); } catch { }
+            hintStatusCoroutine = null;
+        }
+        CancelInvoke(nameof(PuzzleSolved));
+
         targetWord   = wordBank[Random.Range(0, wordBank.Length)];
         currentGuess = "";
         currentRow   = 0;
         gameOver     = false;
+        Debug.Log($"[Wordle] Reset complete: gameOver={gameOver}, targetWord={targetWord}, currentRow={currentRow}");
         hintUsed     = false;
         hintedCells  = new bool[6, 5];
 
@@ -87,11 +99,21 @@ public class WordleScript : MonoBehaviour
         if (letterButtons != null)
             foreach (Button btn in letterButtons)
                 if (btn != null) btn.GetComponent<Image>().color = defaultColor;
+
+        // Clear any UI selection so Enter/Space doesn't activate a focused button
+        if (EventSystem.current != null)
+        {
+            EventSystem.current.SetSelectedGameObject(null);
+        }
     }
 
     void Update()
     {
-        if (gameOver) return;
+        if (gameOver) 
+        {
+            Debug.LogWarning("[Wordle] Update returning early - gameOver is TRUE");
+            return;
+        }
 
         // Physical keyboard input
         foreach (char c in Input.inputString)
@@ -136,6 +158,7 @@ public class WordleScript : MonoBehaviour
 
     public void OnHintButtonPressed()
     {
+        Debug.Log($"[Wordle] OnHintButtonPressed: gameOver={gameOver}, hintUsed={hintUsed}");
         if (gameOver || hintUsed) return;
 
         int revealed = 0;
@@ -157,8 +180,12 @@ public class WordleScript : MonoBehaviour
         if (revealed == 0)
             return;
 
-        if (InstabilityManager.Instance == null || !InstabilityManager.Instance.SpendTime(hintCostSeconds))
+        // Check if TOTAL game time allows hint (not just current stage)
+        float totalTimeRemaining = InstabilityManager.Instance != null ? InstabilityManager.Instance.GetTotalTimeRemaining() : 0f;
+        Debug.Log($"[Wordle] Hint check: totalTimeRemaining={totalTimeRemaining:F2}s, hintCostSeconds={hintCostSeconds}s");
+        if (InstabilityManager.Instance == null || totalTimeRemaining < hintCostSeconds)
         {
+            // Rollback revealed cells
             for (int column = 0; column < 5; column++)
             {
                 if (!hintedCells[currentRow, column]) continue;
@@ -172,6 +199,9 @@ public class WordleScript : MonoBehaviour
             ShowHintStatusTemporary("NOT ENOUGH TIME", 3f);
             return;
         }
+
+        // Deduct time from total game time
+        InstabilityManager.Instance.SpendTime(hintCostSeconds);
 
         RefreshCurrentGuess();
         hintUsed = true;
@@ -209,9 +239,11 @@ public class WordleScript : MonoBehaviour
         if (currentGuess == targetWord)
         {
             gameOver = true;
+            Debug.Log($"[Wordle] CORRECT! Word '{targetWord}' matched. gameOver={gameOver}, scheduling PuzzleSolved");
             Invoke(nameof(PuzzleSolved), 1.5f); // small delay then solve
             return;
         }
+        Debug.Log($"[Wordle] Guess '{currentGuess}' does not match target '{targetWord}'");
 
         currentRow++;
         currentGuess = "";

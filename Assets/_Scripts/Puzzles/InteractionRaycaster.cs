@@ -68,6 +68,17 @@ void ShootRay()
 
         if (terminal != null && !terminal.IsSolved)
         {
+            // Skip door terminal if not in Level 2
+            if (terminal.FactorName == "door" && GameManager.Instance != null)
+            {
+                if (GameManager.Instance.currentState != GameManager.GameState.Level2)
+                {
+                    currentTerminal = null;
+                    HidePrompt();
+                    return;
+                }
+            }
+
             currentTerminal = terminal;
             ShowPrompt("[E] " + terminal.PromptLabel);
             return;

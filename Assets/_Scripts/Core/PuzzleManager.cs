@@ -15,6 +15,7 @@ public class PuzzleManager : MonoBehaviour
     [SerializeField] GameObject pressurePuzzlePanel;
     [SerializeField] GameObject oxygenPuzzlePanel;
     [SerializeField] GameObject radiationPuzzlePanel;
+    [SerializeField] GameObject doorPuzzlePanel;
 
     [Header("Overlay")]
     [SerializeField] GameObject backgroundDim;
@@ -51,6 +52,15 @@ public class PuzzleManager : MonoBehaviour
 {
     if (IsPuzzleOpen) return;
 
+    // Only allow opening door puzzle in Level 2
+    if (terminal.FactorName == "door" && GameManager.Instance != null)
+    {
+        if (GameManager.Instance.currentState != GameManager.GameState.Level2)
+        {
+            return; // door not accessible outside Level 2
+        }
+    }
+
     activeTerminal = terminal;
     IsPuzzleOpen = true;
 
@@ -66,18 +76,40 @@ public class PuzzleManager : MonoBehaviour
     // ADD THIS
     Debug.Log("Opening puzzle for factor: " + terminal.FactorName 
               + " | Panel found: " + (currentPanel != null));
-
     if (currentPanel != null)
+    {
+        Debug.Log($"[PuzzleManager] About to activate panel: {currentPanel.name}, currently active: {currentPanel.activeSelf}");
         currentPanel.SetActive(true);
+        Debug.Log($"[PuzzleManager] Panel {currentPanel.name} is now active: {currentPanel.activeSelf}");
+    }
+    else
+    {
+        // Missing panel assignment — restore player controls so game doesn't freeze
+        Debug.LogError("PuzzleManager.OpenPuzzle: No panel found for factor '" + terminal.FactorName + "'. Restoring player control.");
+        if (backgroundDim != null) backgroundDim.SetActive(false);
+        IsPuzzleOpen = false;
+        currentPanel = null;
+        if (activeTerminal != null) activeTerminal.OnClosed();
+        activeTerminal = null;
+        fpsController.enabled = true;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        return;
+    }
 }
 
     public void ClosePuzzle()
     {
         if (!IsPuzzleOpen) return;
 
+        Debug.Log($"[PuzzleManager] ClosePuzzle called. currentPanel: {(currentPanel != null ? currentPanel.name : "null")}");
+
         // Hide panel and overlay
         if (currentPanel != null)
+        {
+            Debug.Log($"[PuzzleManager] Deactivating panel: {currentPanel.name}");
             currentPanel.SetActive(false);
+        }
 
         if (backgroundDim != null)
             backgroundDim.SetActive(false);
@@ -132,6 +164,18 @@ public class PuzzleManager : MonoBehaviour
             case "pressure":  return pressurePuzzlePanel;
             case "oxygen":    return oxygenPuzzlePanel;
             case "radiation": return radiationPuzzlePanel;
+            case "door":
+                // If doorPuzzlePanel is not assigned, try to auto-find it
+                if (doorPuzzlePanel == null)
+                {
+                    DoorPuzzle dp = FindFirstObjectByType<DoorPuzzle>(FindObjectsInactive.Include);
+                    if (dp != null)
+                    {
+                        doorPuzzlePanel = dp.gameObject;
+                        Debug.Log("GetPanel: Auto-found DoorPuzzle and cached it.");
+                    }
+                }
+                return doorPuzzlePanel;
             default:          return null;
         }
     }
@@ -162,8 +206,18 @@ public class PuzzleManager : MonoBehaviour
     }
 public void ForceReset()
 {
+    Debug.Log("[PuzzleManager] ForceReset called");
     if (currentPanel != null) currentPanel.SetActive(false);
     if (backgroundDim != null) backgroundDim.SetActive(false);
+    
+    // Explicitly deactivate all puzzle panels (including door)
+    if (lightPuzzlePanel != null) lightPuzzlePanel.SetActive(false);
+    if (tempPuzzlePanel != null) tempPuzzlePanel.SetActive(false);
+    if (pressurePuzzlePanel != null) pressurePuzzlePanel.SetActive(false);
+    if (oxygenPuzzlePanel != null) oxygenPuzzlePanel.SetActive(false);
+    if (radiationPuzzlePanel != null) radiationPuzzlePanel.SetActive(false);
+    if (doorPuzzlePanel != null) doorPuzzlePanel.SetActive(false);
+    
     currentPanel   = null;
     activeTerminal = null;
     IsPuzzleOpen   = false;

@@ -30,7 +30,8 @@ public class FootstepTest : MonoBehaviour
             if(footstepTimer <= 0)
             {
                 int randomIndex = Random.Range(0, footstepSounds.Length);
-                audioSource.PlayOneShot(footstepSounds[randomIndex]);
+                // SFX loudness is controlled by the mixer group; keep one-shot at unity.
+                audioSource.PlayOneShot(footstepSounds[randomIndex], 1f);
                 footstepTimer = interval;
             }
         }

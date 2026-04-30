@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using UnityEngine.Audio;
 using UnityEngine.Video;
 
 
@@ -26,6 +27,9 @@ public class CreatureStageSwitch : MonoBehaviour
     public AudioClip stage3Sound;
     public AudioClip gameOverSound;
 
+    [Header("Audio Routing")]
+    public AudioMixerGroup sfxOutputGroup;
+
     private int currentStage = 1;
     private float lockedX;
     private float lockedZ;
@@ -42,6 +46,7 @@ public class CreatureStageSwitch : MonoBehaviour
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.loop = true;
         audioSource.playOnAwake = false;
+        ApplySfxRouting();
 
         PlaySound(stage1Sound);
         SavePosition(stage1);
@@ -74,7 +79,23 @@ public class CreatureStageSwitch : MonoBehaviour
         if (clip == null) return;
         audioSource.Stop();
         audioSource.clip = clip;
+        audioSource.volume = 1f;
         audioSource.Play();
+    }
+
+    void ApplySfxRouting()
+    {
+        if (audioSource == null) return;
+
+        if (sfxOutputGroup == null && AudioSettings.audioMixer != null)
+        {
+            AudioMixerGroup[] groups = AudioSettings.audioMixer.FindMatchingGroups("SFX");
+            if (groups != null && groups.Length > 0)
+                sfxOutputGroup = groups[0];
+        }
+
+        if (sfxOutputGroup != null)
+            audioSource.outputAudioMixerGroup = sfxOutputGroup;
     }
 
     void SavePosition(GameObject obj)

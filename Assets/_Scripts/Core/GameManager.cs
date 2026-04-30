@@ -14,10 +14,30 @@ public class GameManager : MonoBehaviour
     public GameObject pauseCanvas;
     public GameObject winCanvas;
     public GameObject loseCanvas;
+    public GameObject optionsCanvas;
 
     private FirstPersonController _fps;
     private HUDController _hud;
+    private bool _optionsOpen;
+    private GameState _stateBeforeOptions;
     public static HUDController HUD => Instance._hud; // easy global access
+
+    bool EnsureOptionsAssigned()
+    {
+        if (optionsCanvas != null) return true;
+
+        OptionsManager mgr = FindFirstObjectByType<OptionsManager>(FindObjectsInactive.Include);
+        if (mgr != null)
+            optionsCanvas = mgr.optionsPanel != null ? mgr.optionsPanel : mgr.gameObject;
+
+        if (optionsCanvas == null)
+            optionsCanvas = GameObject.Find("OptionsPanel") ?? GameObject.Find("Options");
+
+        if (optionsCanvas == null)
+            Debug.LogError("GameManager: optionsCanvas is not assigned and could not be auto-found.");
+
+        return optionsCanvas != null;
+    }
     void Awake()
     {
         if (Instance == null) Instance = this;
@@ -26,6 +46,7 @@ public class GameManager : MonoBehaviour
 
 void Start()
 {
+    AudioSettings.Load();
     _fps = FindFirstObjectByType<FirstPersonController>(FindObjectsInactive.Include);
     
     // HUDCanvas starts disabled so Awake() never runs on it — find it manually
@@ -54,6 +75,8 @@ void Start()
     {
         currentState = GameState.MainMenu;
         SetScreens(mainMenu: true);
+        if (optionsCanvas != null) optionsCanvas.SetActive(false);
+        _optionsOpen = false;
         Time.timeScale   = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible   = true;
@@ -64,6 +87,8 @@ void Start()
 {
     currentState = GameState.Playing;
     SetScreens(hud: true);
+    if (optionsCanvas != null) optionsCanvas.SetActive(false);
+    _optionsOpen = false;
     Time.timeScale   = 1f;
     Cursor.lockState = CursorLockMode.Locked;
     Cursor.visible   = false;
@@ -77,6 +102,8 @@ void Start()
 
     public void TogglePause()
     {
+        if (_optionsOpen) return;
+
         if (currentState == GameState.Paused)
         {
             currentState = GameState.Playing;
@@ -88,6 +115,11 @@ void Start()
         }
         else
         {
+            // If the player pauses while a puzzle UI is open, close it first so it cannot
+            // block clicks on the pause menu.
+            if (PuzzleManager.Instance != null && PuzzleManager.Instance.IsPuzzleOpen)
+                PuzzleManager.Instance.ClosePuzzle();
+
             currentState = GameState.Paused;
             SetScreens(hud: true, pause: true);
             Time.timeScale   = 0f;
@@ -114,6 +146,8 @@ void Start()
     {
         currentState = GameState.Lose;
         SetScreens(lose: true);
+        if (optionsCanvas != null) optionsCanvas.SetActive(false);
+        _optionsOpen = false;
         Time.timeScale   = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible   = true;
@@ -132,6 +166,47 @@ void Start()
     {
         Time.timeScale = 1f;
         ShowMainMenu();
+    }
+
+    public void RegisterOptionsPanel(GameObject panel)
+    {
+        if (panel == null) return;
+        optionsCanvas = panel;
+    }
+
+    public void OpenOptions()
+    {
+        if (_optionsOpen) return;
+        if (!EnsureOptionsAssigned()) return;
+        if (PuzzleManager.Instance != null && PuzzleManager.Instance.IsPuzzleOpen) return;
+
+        _stateBeforeOptions = currentState;
+        _optionsOpen = true;
+        optionsCanvas.SetActive(true);
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        if (_fps != null) _fps.enabled = false;
+    }
+
+    public void CloseOptions()
+    {
+        if (!EnsureOptionsAssigned()) return;
+        if (!_optionsOpen && !optionsCanvas.activeSelf) return;
+
+        optionsCanvas.SetActive(false);
+        _optionsOpen = false;
+
+        if (_stateBeforeOptions == GameState.Playing && currentState == GameState.Playing)
+        {
+            RestorePlayState();
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            if (_fps != null) _fps.enabled = false;
+        }
     }
 
     public void QuitGame()

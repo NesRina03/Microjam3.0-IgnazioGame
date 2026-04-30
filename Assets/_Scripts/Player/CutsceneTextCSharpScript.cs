@@ -41,7 +41,10 @@ public class TextCutscene : MonoBehaviour
         }
 
         if (ambientAudio != null)
+        {
+            // Music loudness is controlled by mixer routing.
             yield return StartCoroutine(FadeAudio());
+        }
 
         SceneManager.LoadScene(nextScene);
     }

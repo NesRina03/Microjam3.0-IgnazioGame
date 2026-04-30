@@ -1,16 +1,18 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 using System.Collections;
 
 public class PigpenPuzzleUI : MonoBehaviour
 {
-    private const string CORRECT = "lookthroughlens";
+    private const string CORRECT = "twntysxzerofour";
     private const int    ANSWER_LENGTH = 15;
 
     [Header("UI — drag from Hierarchy")]
     [SerializeField] TextMeshProUGUI inputDisplay;
     [SerializeField] TextMeshProUGUI feedbackText;
     [SerializeField] TextMeshProUGUI titleText;
+    [SerializeField] Button exitButton;
 
     private string typed  = "";
     private bool   solved = false;
@@ -22,17 +24,32 @@ public class PigpenPuzzleUI : MonoBehaviour
         solved = false;
         isOpen = true;
 
+        WireExitButton();
+
         if (feedbackText) feedbackText.text = "";
         RefreshDisplay();
 
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible   = false;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible   = true;
         Time.timeScale   = 0f;
     }
 
     void OnDisable()
     {
         isOpen = false;
+    }
+
+    void WireExitButton()
+    {
+        if (exitButton == null)
+            exitButton = GetComponentInChildren<Button>(true);
+
+        if (exitButton == null)
+            return;
+
+        exitButton.onClick.RemoveListener(ClosePuzzle);
+        exitButton.onClick.AddListener(ClosePuzzle);
+        exitButton.interactable = true;
     }
 
     void Update()
@@ -150,7 +167,7 @@ public class PigpenPuzzleUI : MonoBehaviour
         rt.localPosition = ori;
     }
 
-    void ClosePuzzle()
+    public void ClosePuzzle()
     {
         isOpen           = false;
         Time.timeScale   = 1f;

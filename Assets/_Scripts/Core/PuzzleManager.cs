@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using UnityEngine.UI;
 
 public class PuzzleManager : MonoBehaviour
 {
@@ -79,8 +80,9 @@ public class PuzzleManager : MonoBehaviour
     if (currentPanel != null)
     {
         Debug.Log($"[PuzzleManager] About to activate panel: {currentPanel.name}, currently active: {currentPanel.activeSelf}");
+        EnsurePanelVisible(currentPanel);
         currentPanel.SetActive(true);
-        Debug.Log($"[PuzzleManager] Panel {currentPanel.name} is now active: {currentPanel.activeSelf}");
+        Debug.Log($"[PuzzleManager] Panel {currentPanel.name} activeSelf={currentPanel.activeSelf}, activeInHierarchy={currentPanel.activeInHierarchy}");
     }
     else
     {
@@ -97,6 +99,29 @@ public class PuzzleManager : MonoBehaviour
         return;
     }
 }
+
+    void EnsurePanelVisible(GameObject panel)
+    {
+        if (panel == null) return;
+
+        // Ensure every parent in the chain is active, otherwise activeSelf=true won't render.
+        Transform t = panel.transform;
+        while (t != null)
+        {
+            if (!t.gameObject.activeSelf)
+                t.gameObject.SetActive(true);
+            t = t.parent;
+        }
+
+        // Some merged UI objects may have hidden CanvasGroups.
+        var groups = panel.GetComponentsInParent<CanvasGroup>(true);
+        foreach (var g in groups)
+        {
+            g.alpha = 1f;
+            g.interactable = true;
+            g.blocksRaycasts = true;
+        }
+    }
 
     public void ClosePuzzle()
     {
@@ -157,7 +182,18 @@ public class PuzzleManager : MonoBehaviour
 
     GameObject GetPanel(string factorName)
     {
-        switch (factorName)
+        if (string.IsNullOrWhiteSpace(factorName))
+            return null;
+
+        string key = factorName.Trim().ToLowerInvariant();
+
+        // Aliases from merged scenes/prefabs
+        if (key == "board1" || key == "board" || key == "pigpen" || key == "pigpenboard")
+            key = "pressure";
+        else if (key == "temperature")
+            key = "temp";
+
+        switch (key)
         {
             case "light":     return lightPuzzlePanel;
             case "temp":      return tempPuzzlePanel;

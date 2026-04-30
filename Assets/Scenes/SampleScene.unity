@@ -12580,8 +12580,9 @@ GameObject:
   m_Component:
   - component: {fileID: 937701490}
   - component: {fileID: 937701489}
+  - component: {fileID: 937701491}
   m_Layer: 0
-  m_Name: background music
+  m_Name: MusicManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -12599,7 +12600,7 @@ AudioSource:
   OutputAudioMixerGroup: {fileID: 8999518984529360674, guid: 96abf85e6b7b20bbf9dbbaeec84cfb85, type: 2}
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 8300000, guid: e1c5f88044e42a7499d704deda80d7d2, type: 3}
-  m_PlayOnAwake: 1
+  m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
   Loop: 1
@@ -12644,7 +12645,7 @@ AudioSource:
     m_Curve:
     - serializedVersion: 3
       time: 0
-      value: 0
+      value: 0.137
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -12699,6 +12700,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1603395496}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &937701491
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 937701488}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 716b069ccda70dc4ebb345db91958180, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MusicManager
+  mainMusic: {fileID: 8300000, guid: e1c5f88044e42a7499d704deda80d7d2, type: 3}
+  level2Music: {fileID: 8300000, guid: 4f4bf95da8a7cf38fbe60d7bc438dbc8, type: 3}
+  mainSource: {fileID: 0}
+  crossfadeTime: 1
 --- !u!1 &941590278
 GameObject:
   m_ObjectHideFlags: 0

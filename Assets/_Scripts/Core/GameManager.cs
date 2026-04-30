@@ -105,6 +105,20 @@ void Start()
     // ← force reset puzzle state on every new game
     if (PuzzleManager.Instance != null)
         PuzzleManager.Instance.ForceReset();
+
+    // Ensure MusicManager exists and start main music
+    if (MusicManager.Instance == null)
+    {
+        Debug.Log("GameManager: MusicManager not found — creating one at runtime.");
+        var go = new GameObject("MusicManager");
+        var mm = go.AddComponent<MusicManager>();
+        DontDestroyOnLoad(go);
+    }
+
+    if (MusicManager.Instance != null)
+    {
+        MusicManager.Instance.PlayMainMusic();
+    }
 }
 
     public void TogglePause()
@@ -164,6 +178,9 @@ void Start()
             PuzzleManager.Instance.ForceReset();
             Debug.Log("[GameManager] TransitionToLevel2: ForceReset called on PuzzleManager");
         }
+        // Play Level2 music
+        if (MusicManager.Instance != null)
+            MusicManager.Instance.PlayLevel2Music();
     }
    public void TriggerWin()
 {

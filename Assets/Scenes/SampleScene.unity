@@ -26623,6 +26623,26 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1875532487}
     m_Modifications:
+    - target: {fileID: 363499187940819259, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: d0373ce0a7d38ae62853158e37f3db0e, type: 3}
+    - target: {fileID: 2932647356840704326, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 3.3308382
+      objectReference: {fileID: 0}
+    - target: {fileID: 2932647356840704326, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 2.1499891
+      objectReference: {fileID: 0}
+    - target: {fileID: 2932647356840704326, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.1374027
+      objectReference: {fileID: 0}
+    - target: {fileID: 2932647356840704326, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 4644562528576861539, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -26649,11 +26669,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4644562528576861539, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 0
+      value: -959.7267
       objectReference: {fileID: 0}
     - target: {fileID: 4644562528576861539, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 0
+      value: 319.7096
       objectReference: {fileID: 0}
     - target: {fileID: 4644562528576861539, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
       propertyPath: m_LocalPosition.x
@@ -26665,7 +26685,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4644562528576861539, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -30.362143
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4644562528576861539, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
       propertyPath: m_LocalRotation.w
@@ -26685,11 +26705,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4644562528576861539, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: -959.7267
+      value: 34
       objectReference: {fileID: 0}
     - target: {fileID: 4644562528576861539, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -319.7096
+      value: -62
       objectReference: {fileID: 0}
     - target: {fileID: 4644562528576861539, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -26703,6 +26723,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5167388650389488525, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -844
+      objectReference: {fileID: 0}
+    - target: {fileID: 6610565324666666844, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: bf05e371053e35b4d831f0326c36b635, type: 3}
     - target: {fileID: 8056240242645126190, guid: 89f6b5c363552c832809fd2f64adec54, type: 3}
       propertyPath: m_Name
       value: PigpenCanvas
